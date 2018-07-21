@@ -21,11 +21,10 @@ mySQLdatabase = 'question_marking_system'
 
 def connectToGraph():
     #Authenticate user
-    # py2neo.authenticate("localhost:7474", "neo4j", "neo4j")
+    py2neo.authenticate("localhost:7474", "neo4j", "neo4j")
 
     #Connect to Graph
-    # graph = Graph("http://localhost:7474/db/data/")
-    graph = Graph("bolt://localhost:7474/db/data/", bolt=True, user="neo4j", password="neo4j")
+    graph = Graph("http://localhost:7474/db/data/")
 
     return graph
 
