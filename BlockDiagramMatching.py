@@ -18,32 +18,6 @@ mySQLusername = 'root'
 mySQLpassword = ''
 mySQLdatabase = 'question_marking_system'
 
-def createBlockGraph(diagramType, diagramId):
-    connection = pymysql.connect(host=mySQLhostname, user=mySQLusername, passwd=mySQLpassword, db=mySQLdatabase)
-    cur = connection.cursor()
-
-    if diagramType == "Teacher":
-        cur.execute("SELECT answerDiagram FROM process_question WHERE processqId = %s", (diagramId))
-    elif diagramType == "Student":
-        cur.execute("SELECT answerDiagram FROM process_stud_answer WHERE processStudAnsId = %s", (diagramId))
-
-    resultSet = cur.fetchone()
-    print(resultSet)
-    cur.close()
-    connection.close()
-
-    jsonData = json.loads(resultSet[0])
-
-    createNodes(jsonData, diagramType, "Block")
-    createRelationships(jsonData, diagramType)
-
-# createTeacherBlockGraph()
-# createStudentBlockGraph()
-
-
-
-
-
 def addTheOnlyUnmatchedNode(caller, graph,
                             notMatchedParentTeacherNodes,
                             teachStack,
