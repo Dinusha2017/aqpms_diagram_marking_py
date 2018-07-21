@@ -25,7 +25,7 @@ def connectToGraph():
 
     #Connect to Graph
     # graph = Graph("http://localhost:7474/db/data/")
-    graph = Graph("bolt://localhost:7474/db/data/", user="neo4j", password="neo4j")
+    graph = Graph("http://localhost:7474/db/data/", user="neo4j", password="neo4j")
 
     return graph
 
