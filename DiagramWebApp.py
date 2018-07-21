@@ -86,4 +86,4 @@ def markLogicGateQuestion(question_Id):
     return markDiagram(question_Id, "LogicGate")
 
 if __name__ == '__main__':
-    webapp.run(debug=True)
+    webapp.run(host = '138.197.211.217', port = 5000, debug = True)
