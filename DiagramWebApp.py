@@ -10,7 +10,7 @@ import pymysql
 
 mySQLhostname = 'localhost'
 mySQLusername = 'root'
-mySQLpassword = ''
+mySQLpassword = 'aqpms'
 mySQLdatabase = 'question_marking_system'
 
 webapp = Flask(__name__)

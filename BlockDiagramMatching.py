@@ -15,7 +15,7 @@ import json
 
 mySQLhostname = 'localhost'
 mySQLusername = 'root'
-mySQLpassword = ''
+mySQLpassword = 'aqpms'
 mySQLdatabase = 'question_marking_system'
 
 def addTheOnlyUnmatchedNode(caller, graph,
@@ -596,7 +596,7 @@ def markStudDFSBlockAnswer(processQuestionId, studentAnswerId):
 
         elif studStack and not teachStack:
             print('^^^^^^^^^^^^^^^STUDENT stack has moreeee.....')
-            break;
+            break
 
 
     # handles additional nodes down an additional node starting path

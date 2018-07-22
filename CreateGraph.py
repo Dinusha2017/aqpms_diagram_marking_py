@@ -6,7 +6,7 @@ import json
 
 mySQLhostname = 'localhost'
 mySQLusername = 'root'
-mySQLpassword = ''
+mySQLpassword = 'aqpms'
 mySQLdatabase = 'question_marking_system'
 
 # print("NodeArray: ")

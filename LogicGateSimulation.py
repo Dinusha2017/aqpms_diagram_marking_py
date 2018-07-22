@@ -9,7 +9,7 @@ from CreateGraph import connectToGraph
 
 mySQLhostname = 'localhost'
 mySQLusername = 'root'
-mySQLpassword = ''
+mySQLpassword = 'aqpms'
 mySQLdatabase = 'question_marking_system'
 
 def handleGateInputsAndQueue(childNode,
