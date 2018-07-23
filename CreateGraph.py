@@ -4,8 +4,8 @@ import pymysql
 
 import json
 
-mySQLhostname = 'localhost'
-mySQLusername = 'root'
+mySQLhostname = '206.189.209.170'
+mySQLusername = 'aqpmsuser'
 mySQLpassword = 'aqpms'
 mySQLdatabase = 'question_marking_system'
 
@@ -70,7 +70,9 @@ def createRelationships(json, diagramType):
     print("Relationship Creation finished")
 
 def createNeo4jGraph(graphType, diagramType, diagramId):
-    connection = pymysql.connect(host=mySQLhostname, user=mySQLusername, passwd=mySQLpassword, db=mySQLdatabase)
+    print('Inside createNeo4jGraph')
+    connection = pymysql.connect(host=mySQLhostname, user=mySQLusername, passwd=mySQLpassword, db=mySQLdatabase) #, port=3306
+    print('Got connected to MySQL')
     cur = connection.cursor()
 
     if graphType == "Block" and diagramType == "Teacher":
@@ -86,6 +88,8 @@ def createNeo4jGraph(graphType, diagramType, diagramId):
     print(resultSet)
     cur.close()
     connection.close()
+
+    print('Answer Diagram Retrieved')
 
     jsonData = json.loads(resultSet[0])
 

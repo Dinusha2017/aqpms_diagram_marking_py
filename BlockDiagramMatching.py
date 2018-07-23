@@ -13,8 +13,8 @@ from py2neo import Graph
 
 import json
 
-mySQLhostname = 'localhost'
-mySQLusername = 'root'
+mySQLhostname = '206.189.209.170'
+mySQLusername = 'aqpmsuser'
 mySQLpassword = 'aqpms'
 mySQLdatabase = 'question_marking_system'
 

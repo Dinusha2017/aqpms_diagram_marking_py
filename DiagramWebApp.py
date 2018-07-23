@@ -8,8 +8,8 @@ from LogicGateSimulation import simulateLogicGate, deleteSimulationCombinationDa
 
 import pymysql
 
-mySQLhostname = 'localhost'
-mySQLusername = 'root'
+mySQLhostname = '206.189.209.170' #localhost (db located server ip address)
+mySQLusername = 'aqpmsuser' #root
 mySQLpassword = 'aqpms'
 mySQLdatabase = 'question_marking_system'
 
@@ -29,7 +29,7 @@ def markDiagram(question_Id, graphType):
         if graphType == "LogicGate":
             connection = pymysql.connect(host=mySQLhostname, user=mySQLusername, passwd=mySQLpassword, db=mySQLdatabase)
             cur = connection.cursor()
-            cur.execute("SELECT isExactMatch, noOfInputs FROM logic_gate_question WHERE logicgateqId = %s" % (1))
+            cur.execute("SELECT isExactMatch, noOfInputs FROM logic_gate_question WHERE logicgateqId = %s", (question_Id))
             resultSet = cur.fetchone()
             cur.close()
             connection.close()
@@ -64,10 +64,13 @@ def markDiagram(question_Id, graphType):
         deleteAllAfterMarking()
         if graphType == "LogicGate" and isExactMatch == "false":
             deleteSimulationCombinationData()
-    except:
+    except Exception as e:
         deleteAllAfterMarking()
-        if graphType == "LogicGate" and isExactMatch == "false":
+        if graphType == "LogicGate":  #  and isExactMatch == "false"
             deleteSimulationCombinationData()
+
+        print('Exception: ')
+        print(e)    
 
         return jsonify({"status":"failed"})
 
@@ -86,4 +89,4 @@ def markLogicGateQuestion(question_Id):
     return markDiagram(question_Id, "LogicGate")
 
 if __name__ == '__main__':
-    webapp.run(host = '138.197.211.217', port = 5000, debug = True)
+    webapp.run(host = '138.197.211.217', port = 5000, debug = True)  # 127.0.0.1
