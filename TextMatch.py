@@ -1,10 +1,11 @@
 from nltk import word_tokenize, pos_tag
 from nltk.corpus import wordnet as wn
 
-# from nltk.downloader import nltk
+from nltk.downloader import nltk
 
 # nltk.download('averaged_perceptron_tagger')
 # nltk.download('wordnet')
+# nltk.download('punkt')
 
 #  Convert a Penn Treebank tag to a simplified Wordnet tag
 def convertPennTagToWnTag(tag):

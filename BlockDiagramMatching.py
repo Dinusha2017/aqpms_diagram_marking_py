@@ -191,7 +191,7 @@ def detectUndetectedBlocks(caller,
 
         for childNode in currentNodeChildNodesList:
 
-            if not childNode['child']['text'] == 'End':
+            if not childNode['child']['text'] == 'end':
                 if not childNode['child']['key'] in visitedNodeSet:
                     totNoOfIncorrectNodes = totNoOfIncorrectNodes + 1
 
@@ -279,9 +279,9 @@ def markStudDFSBlockAnswer(processQuestionId, studentAnswerId):
     levenshtein = py_stringmatching.Levenshtein()
 
     teacherStartNodeKey = graph.data(
-        "MATCH (node:Teacher) WHERE node.text='Start' RETURN node.key")
+        "MATCH (node:Teacher) WHERE node.text='start' RETURN node.key")
     studentStartNodeKey = graph.data(
-        "MATCH (node:Student) WHERE node.text='Start' RETURN node.key")
+        "MATCH (node:Student) WHERE node.text='start' RETURN node.key")
 
     teachStack = [teacherStartNodeKey[0]['node.key']]
     studStack = [studentStartNodeKey[0]['node.key']]
@@ -393,7 +393,7 @@ def markStudDFSBlockAnswer(processQuestionId, studentAnswerId):
 
                                     teachStack.append(teacherChild['child']['key'])
 
-                                    if not studentChild['child']['key'] in allMatchedStudNodes and not studentChild['child']['text'] == 'End':
+                                    if not studentChild['child']['key'] in allMatchedStudNodes and not studentChild['child']['text'] == 'end':
                                         totNoOfMatchedNodes = totNoOfMatchedNodes + 1
 
                                     allMatchedTeachNodes.append(teacherChild['child']['key'])
