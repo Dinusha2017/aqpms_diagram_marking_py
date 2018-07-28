@@ -5,6 +5,8 @@ import py_stringmatching
 from difflib import SequenceMatcher
 from TextMatch import getPhraseSimilarity
 
+import re
+
 from CreateGraph import createNodes
 from CreateGraph import createRelationships
 from CreateGraph import connectToGraph
@@ -124,7 +126,7 @@ def checkForCurrentNodeChildMatch(caller, graph,
                 for notMatchedStudentChild in notMatchedStudentChildNodes:
                     textSim = getPhraseSimilarity(teacherChildText, notMatchedStudentChild['child']['text'])
 
-                    if textSim >= 0.55:
+                    if re.match(teacherChildText, notMatchedStudentChild['child']['text'], re.IGNORECASE) or textSim >= 0.55:
                         print('the text')
                         print(teacherChildText)
                         print(notMatchedStudentChild['child']['text'])
@@ -136,10 +138,10 @@ def checkForCurrentNodeChildMatch(caller, graph,
 
                         if caller == "substitutedCaller":
                             feedback = feedback + 'The block:' + studentChild['child']['text'] + ' connected to block:' +\
-                                       + currentStudText + ' is substituted and should be:' + teacherNodeText[0]['node.text'] + '. '
+                                       currentStudText + ' is substituted and should be:' + teacherNodeText[0]['node.text'] + '. '
                         elif caller == "additionalSubstitutedCaller" or caller == "deletedSubstitutedCaller":
                             feedback = feedback + 'block: ' + studentChild['child']['text'] + ' connected to block:' +\
-                                       + currentStudText + ' is substituted and should be:' + \
+                                       currentStudText + ' is substituted and should be:' + \
                                        teacherNodeText[0]['node.text'] + ' and '
 
                         print('feedback: ' + feedback)
@@ -380,7 +382,7 @@ def markStudDFSBlockAnswer(processQuestionId, studentAnswerId):
 
                             # if lev_score > 0.1:
                             # if similarity > 0.4:
-                            if synsetSim_score >= 0.55:
+                            if re.match(teachText, childText, re.IGNORECASE) or synsetSim_score >= 0.55:
                                 print('threshold similarity added to Student stack')
 
                                 feedback = feedback + 'The block:' + studentChild['child']['text'] + \

@@ -70,7 +70,17 @@ def getPhraseSimilarity(teacherPhrase, studentPhrase):
         # has to enter correct details to the system without mistakes
         if studentSynsets:
             # get the similarity value of the most similar word in the student's text/phrase
-            best_score = max([synset.path_similarity(ss) for ss in studentSynsets])
+            simList = [synset.path_similarity(ss) for ss in studentSynsets]
+
+            # remove None from list
+            simList = [val for val in simList if val is not None]
+
+            if not simList:
+                continue
+
+            print(simList)
+
+            best_score = max(simList)
 
             if best_score is not None:
                 score = score + best_score
@@ -78,6 +88,10 @@ def getPhraseSimilarity(teacherPhrase, studentPhrase):
         else:
             score = 0
             return score
+
+    if score == 0 or count == 0:
+        score = 0
+        return score
 
     # get the average score
     score = score/count
