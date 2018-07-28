@@ -105,8 +105,20 @@ def getAllStudentNodeKeysList():
 # getAllStudentNodeKeysList()
 
 
+def getTotalNoOfTeacherNodes():
+    graph = connectToGraph()
+
+    studentNodes = graph.data(
+        "MATCH (node:Teacher) RETURN node.key")
+
+    return len(studentNodes)
+
+# print(getTotalNoOfTeacherNodes())
+
+
 
 def allocateMarksToLogicGateAnswerAndSaveToDatabase(matchedCompletedStudentNodes,
+                                                    noOfMatchedNodes,
                                                     noOfAdditionalNodes,
                                                     noOfDeletedNodes,
                                                     noOfSubstitutedNodes,
@@ -128,9 +140,9 @@ def allocateMarksToLogicGateAnswerAndSaveToDatabase(matchedCompletedStudentNodes
 
     totalAddDeleteSubDiff = noOfAdditionalNodes + noOfDeletedNodes + noOfSubstitutedNodes + totNoOfOtherIncorrectNodes
 
-    scoredSymbolMark = len(matchedCompletedStudentNodes) * symbolMark
+    scoredSymbolMark = noOfMatchedNodes * symbolMark
 
-    if len(matchedCompletedStudentNodes) == 0:
+    if noOfMatchedNodes == 0:
         scoredSequenceMark = 0
     else:
         # maximum number of errors for additions and deletions that are allowed is 6
@@ -143,6 +155,8 @@ def allocateMarksToLogicGateAnswerAndSaveToDatabase(matchedCompletedStudentNodes
 
     print(scoredSymbolMark)
     print(scoredSequenceMark)
+    print('no of matched nodes in allocateMarksToLogicGateAnswerAndSaveToDatabase')
+    print(noOfMatchedNodes)
     print(noOfAdditionalNodes)
     print(noOfDeletedNodes)
     print(noOfSubstitutedNodes)
@@ -627,13 +641,16 @@ def markLogicGateAnswer(logicGateQuestionId, studentAnswerId, isExactMatch, noOf
         print('true')
         matchedCompletedStudentNodes, noOfAdditionalNodes, noOfDeletedNodes, noOfSubstitutedNodes, totNoOfOtherIncorrectNodes, \
         feedback, answerDiagramCorrect = markStudBFSLogicGateAnswer()
-        allocateMarksToLogicGateAnswerAndSaveToDatabase(matchedCompletedStudentNodes, noOfAdditionalNodes, noOfDeletedNodes,
+        allocateMarksToLogicGateAnswerAndSaveToDatabase(matchedCompletedStudentNodes, len(matchedCompletedStudentNodes), \
+                                                        noOfAdditionalNodes, noOfDeletedNodes, \
                                                         noOfSubstitutedNodes, totNoOfOtherIncorrectNodes, feedback, \
                                                         logicGateQuestionId, studentAnswerId)
     elif isExactMatch == "false":
         print('false')
         matchedCompletedStudentNodes, noOfAdditionalNodes, noOfDeletedNodes, noOfSubstitutedNodes, totNoOfOtherIncorrectNodes, \
         feedback, answerDiagramCorrect = markStudBFSLogicGateAnswer()
+
+        noOfMatchedNodes = len(matchedCompletedStudentNodes)
 
         if answerDiagramCorrect == "false":
             noOfMatchedCombinations = simulateLogicGate("Student", noOfInputs, logicGateQuestionId)
@@ -642,6 +659,7 @@ def markLogicGateAnswer(logicGateQuestionId, studentAnswerId, isExactMatch, noOf
                     or (noOfInputs == 3 and noOfMatchedCombinations == 8):
                 matchedCompletedStudentNodes.clear()
                 matchedCompletedStudentNodes = getAllStudentNodeKeysList()
+                noOfMatchedNodes = getTotalNoOfTeacherNodes()
                 noOfAdditionalNodes = 0
                 noOfDeletedNodes = 0
                 noOfSubstitutedNodes = 0
@@ -652,7 +670,7 @@ def markLogicGateAnswer(logicGateQuestionId, studentAnswerId, isExactMatch, noOf
                 feedback = feedback + "Your answer is wrong when compared to the teacher's answer, and also, it is not " + \
                            "an alternative to the teacher's answer. "
 
-        allocateMarksToLogicGateAnswerAndSaveToDatabase(matchedCompletedStudentNodes, noOfAdditionalNodes, noOfDeletedNodes,
+        allocateMarksToLogicGateAnswerAndSaveToDatabase(matchedCompletedStudentNodes, noOfMatchedNodes, noOfAdditionalNodes, noOfDeletedNodes,
                                                         noOfSubstitutedNodes, totNoOfOtherIncorrectNodes, feedback, \
                                                         logicGateQuestionId, studentAnswerId)
 
