@@ -7,8 +7,6 @@ from TextMatch import getPhraseSimilarity
 
 import re
 
-from CreateGraph import createNodes
-from CreateGraph import createRelationships
 from CreateGraph import connectToGraph
 
 from py2neo import Graph
@@ -325,7 +323,7 @@ def markStudDFSBlockAnswer(processQuestionId, studentAnswerId):
             studCurrent = studStack.pop()
 
             teacherCurrentText = graph.data(
-                "MATCH (node:Student) WHERE node.key= {key} RETURN node.text",
+                "MATCH (node:Teacher) WHERE node.key= {key} RETURN node.text",
                 parameters={"key": teachCurrent})
 
             studentCurrentText = graph.data(

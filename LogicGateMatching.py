@@ -1,6 +1,6 @@
 import pymysql
 
-from CreateGraph import createNodes, createRelationships, connectToGraph
+from CreateGraph import connectToGraph
 
 from LogicGateSimulation import simulateLogicGate
 
@@ -10,39 +10,6 @@ mySQLhostname = '206.189.209.170'
 mySQLusername = 'aqpmsuser'
 mySQLpassword = 'aqpms'
 mySQLdatabase = 'question_marking_system'
-
-def createTeacherLogicGateGraph():
-    connection = pymysql.connect(host=mySQLhostname, user=mySQLusername, passwd=mySQLpassword, db=mySQLdatabase)
-    cur = connection.cursor()
-    cur.execute("SELECT answerDiagram FROM logic_gate_question WHERE logicgateqId = '%d'" % (1))
-    resultSet = cur.fetchone()
-    cur.close()
-    connection.close()
-
-    jsonData = json.loads(resultSet[0])
-
-    createNodes(jsonData, "Teacher", "LogicGate")
-    createRelationships(jsonData, "Teacher")
-
-
-def createStudentLogicGateGraph():
-    connection = pymysql.connect(host=mySQLhostname, user=mySQLusername, passwd=mySQLpassword, db=mySQLdatabase)
-    cur = connection.cursor()
-    cur.execute("SELECT answerDiagram FROM logic_gate_stud_answer WHERE logicgateStudAnsId = '%d'" % (1))
-    resultSet = cur.fetchone()
-    cur.close()
-    connection.close()
-
-    jsonData = json.loads(resultSet[0])
-
-    print(jsonData)
-
-    createNodes(jsonData, "Student", "LogicGate")
-    createRelationships(jsonData, "Student")
-
-
-# createTeacherLogicGateGraph()
-# createStudentLogicGateGraph()
 
 
 def detectUndetectedGates(caller,
