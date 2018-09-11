@@ -474,12 +474,13 @@ def runDFSAndAddStatementToPyFile(studentAnswerFile):
     return outputVariableNames
 
 
-def executeStudentAnswerProgram(outputVariableNames):
+def executeStudentAnswerProgram(outputVariableNames,
+                                flowchartQuestionId):
     desiredProgramExecution = "true"
 
     connection = connectToMySQL()
     cur = connection.cursor()
-    cur.execute("SELECT inputs, outputs FROM flowchart_question WHERE 	flowchartqId = %s", (46))
+    cur.execute("SELECT inputs, outputs FROM flowchart_question WHERE 	flowchartqId = %s", (flowchartQuestionId))
     resultSet = cur.fetchone()
     cur.close()
     connection.close()
@@ -550,27 +551,32 @@ def executeStudentAnswerProgram(outputVariableNames):
 
 
 
-def convertFlowchartToProgram():
-    directory = "StudentAnswerProgram"
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
-    os.chdir(directory)
-
+def convertFlowchartToProgram(flowchartQuestionId):
     studentAnswerFile = open("studentAnswer.py", "w")
     # studentAnswerFile.write("import sys\nimport time\n")
     studentAnswerFile.write("import sys\n")
     studentAnswerFile.write("argCount = 1\n")
-    outputVariableNames = runDFSAndAddStatementToPyFile(studentAnswerFile)
+
+    try:
+        outputVariableNames = runDFSAndAddStatementToPyFile(studentAnswerFile)
+        possibleToGenerateProgram = "true"
+    except:
+        possibleToGenerateProgram = "false"
+
     studentAnswerFile.close()
 
-    desiredProgramExecution = executeStudentAnswerProgram(outputVariableNames)
+    if possibleToGenerateProgram == "true":
+        desiredProgramExecution = executeStudentAnswerProgram(outputVariableNames, flowchartQuestionId)
 
     if desiredProgramExecution == "true":
         print("Desired correct program execution")
     elif desiredProgramExecution == "false":
         print("Incorrect program execution")
 
+    if os.path.isfile('studentAnswer.py'):
+        os.remove('studentAnswer.py')
+
+    return desiredProgramExecution
 
     # sys.argv = ["studentAnswer.py", number1, number2]
     # print(output["sum"])

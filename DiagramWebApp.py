@@ -1,22 +1,26 @@
 from flask import Flask, jsonify
 
+import os
+import shutil
+
+from DbConnection import connectToMySQL
+
 from BlockDiagramMatching import markStudDFSBlockAnswer
 from CreateGraph import createNeo4jGraph, deleteStudentGraph, deleteAllAfterMarking
 
 from LogicGateMatching import markLogicGateAnswer
 from LogicGateSimulation import simulateLogicGate, deleteSimulationCombinationData
 
-import pymysql
+from FlowchartMatching import markFlowchartAnswer
 
-mySQLhostname = '206.189.209.170' #localhost (db located server ip address)
-mySQLusername = 'aqpmsuser' #root
-mySQLpassword = 'aqpms'
-mySQLdatabase = 'question_marking_system'
+import pymysql
 
 webapp = Flask(__name__)
 
 def markDiagram(question_Id, graphType):
     print("QuestionId: " + question_Id)
+
+    directory = "StudentAnswerProgram"
 
     try:
         print("Inside try")
@@ -27,7 +31,7 @@ def markDiagram(question_Id, graphType):
         noOfInputs = 0
 
         if graphType == "LogicGate":
-            connection = pymysql.connect(host=mySQLhostname, user=mySQLusername, passwd=mySQLpassword, db=mySQLdatabase)
+            connection = connectToMySQL()
             cur = connection.cursor()
             cur.execute("SELECT isExactMatch, noOfInputs FROM logic_gate_question WHERE logicgateqId = %s", (question_Id))
             resultSet = cur.fetchone()
@@ -39,8 +43,12 @@ def markDiagram(question_Id, graphType):
 
             if isExactMatch == "false":
                 simulateLogicGate("Teacher", noOfInputs, question_Id)
+        elif graphType == "Flowchart":
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+            os.chdir(directory)    
 
-        connection = pymysql.connect(host=mySQLhostname, user=mySQLusername, passwd=mySQLpassword, db=mySQLdatabase)
+        connection = connectToMySQL()
         cur = connection.cursor()
         cur.execute("SELECT studAnswerId FROM student_answer WHERE questionId = %s and markedStatus = %s", 
                     (question_Id, "false"))
@@ -57,17 +65,29 @@ def markDiagram(question_Id, graphType):
             if graphType == "Block":
                 markStudDFSBlockAnswer(question_Id, row[0])
             elif graphType == "LogicGate":
-                markLogicGateAnswer(question_Id, row[0], isExactMatch, noOfInputs)    
+                markLogicGateAnswer(question_Id, row[0], isExactMatch, noOfInputs)
+            elif graphType == "Flowchart":
+                markFlowchartAnswer(question_Id, row[0])        
 
             deleteStudentGraph()
 
         deleteAllAfterMarking()
         if graphType == "LogicGate" and isExactMatch == "false":
             deleteSimulationCombinationData()
+        elif graphType == "Flowchart":
+            os.chdir('..')
+
+            if os.path.isdir(directory):
+                shutil.rmtree(directory)
     except Exception as e:
         deleteAllAfterMarking()
         if graphType == "LogicGate":  #  and isExactMatch == "false"
             deleteSimulationCombinationData()
+        elif graphType == "Flowchart":
+            os.chdir('..')
+
+            if os.path.isdir(directory):
+                shutil.rmtree(directory)
 
         print('Exception: ')
         print(e)    
@@ -88,5 +108,9 @@ def markBlockQuestion(question_Id):
 def markLogicGateQuestion(question_Id):    
     return markDiagram(question_Id, "LogicGate")
 
+@webapp.route("/flowchart/question/<question_Id>", methods=['GET'])
+def markFlowchartQuestion(question_Id):    
+    return markDiagram(question_Id, "Flowchart")    
+
 if __name__ == '__main__':
-    webapp.run(host = '138.197.211.217', port = 5000, debug = True)  # 127.0.0.1
+    webapp.run(host = '127.0.0.1', port = 5000, debug = True)  #   138.197.211.217

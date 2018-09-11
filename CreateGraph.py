@@ -2,12 +2,9 @@ import py2neo
 from py2neo import Graph, Node, Relationship
 import pymysql
 
-import json
+from DbConnection import connectToMySQL
 
-mySQLhostname = '206.189.209.170'
-mySQLusername = 'aqpmsuser'
-mySQLpassword = 'aqpms'
-mySQLdatabase = 'question_marking_system'
+import json
 
 # print("NodeArray: ")
 # print(json['nodeDataArray'])
@@ -86,7 +83,7 @@ def createRelationships(json, diagramType, graphType):
 
 def createNeo4jGraph(graphType, diagramType, diagramId):
     print('Inside createNeo4jGraph')
-    connection = pymysql.connect(host=mySQLhostname, user=mySQLusername, passwd=mySQLpassword, db=mySQLdatabase) #, port=3306
+    connection = connectToMySQL()
     print('Got connected to MySQL')
     cur = connection.cursor()
 

@@ -3,7 +3,7 @@ from DbConnection import connectToMySQL
 
 import re
 
-from FlowchartProgramExecution import ifHasOnlyOnePath
+from FlowchartProgramExecution import ifHasOnlyOnePath, convertFlowchartToProgram
 
 # createNeo4jGraph("Flowchart", "Teacher", 46)
 # createNeo4jGraph("Flowchart", "Student", 135)
@@ -36,10 +36,13 @@ def compareStepCounts(symbol,
                       totNoOfAdditionalSteps,
                       totNoOfDeletedSteps,
                       feedback,
-                      differenceAllowed):
+                      differenceAllowed,
+                      desiredProgramOutput):
     if symbolNoCountKey in teacherStepAndMarkInfo and symbolNoCountKey in studentStepInfo:
-        markPerSymbolAction = teacherStepAndMarkInfo[symbolTotMarksKey] / teacherStepAndMarkInfo[symbolNoCountKey]
-
+        if desiredProgramOutput == "false" and symbolNoCountKey == 'noOfDecisions' and symbolTotMarksKey == 'totDecisionMarks':
+            markPerSymbolAction = (teacherStepAndMarkInfo[symbolTotMarksKey] / teacherStepAndMarkInfo[symbolNoCountKey])/2
+        else:
+            markPerSymbolAction = teacherStepAndMarkInfo[symbolTotMarksKey] / teacherStepAndMarkInfo[symbolNoCountKey]
         # print(symbolNoCountKey)
         # print(teacherStepAndMarkInfo[symbolNoCountKey])
         # print(studentStepInfo[symbolNoCountKey])
@@ -123,7 +126,8 @@ def callStepCountingForAllSymbols(teacherStepAndMarkInfo,
                                   scoredStepMark,
                                   totNoOfAdditionalSteps,
                                   totNoOfDeletedSteps,
-                                  feedback):
+                                  feedback,
+                                  desiredProgramOutput):
     scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback = compareStepCounts('Input',
                                                                                               'noOfInputs',
                                                                                               'totInputMarks',
@@ -133,7 +137,8 @@ def callStepCountingForAllSymbols(teacherStepAndMarkInfo,
                                                                                               totNoOfAdditionalSteps,
                                                                                               totNoOfDeletedSteps,
                                                                                               feedback,
-                                                                                              0)
+                                                                                              0,
+                                                                                              desiredProgramOutput)
 
     scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback = compareStepCounts('Process',
                                                                                               'noOfProcesses',
@@ -144,7 +149,8 @@ def callStepCountingForAllSymbols(teacherStepAndMarkInfo,
                                                                                               totNoOfAdditionalSteps,
                                                                                               totNoOfDeletedSteps,
                                                                                               feedback,
-                                                                                              4)
+                                                                                              4,
+                                                                                              desiredProgramOutput)
 
     scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback = compareStepCounts('Output',
                                                                                               'noOfOutputs',
@@ -155,7 +161,8 @@ def callStepCountingForAllSymbols(teacherStepAndMarkInfo,
                                                                                               totNoOfAdditionalSteps,
                                                                                               totNoOfDeletedSteps,
                                                                                               feedback,
-                                                                                              0)
+                                                                                              0,
+                                                                                              desiredProgramOutput)
 
     scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback = compareStepCounts('Decision',
                                                                                               'noOfDecisions',
@@ -166,120 +173,10 @@ def callStepCountingForAllSymbols(teacherStepAndMarkInfo,
                                                                                               totNoOfAdditionalSteps,
                                                                                               totNoOfDeletedSteps,
                                                                                               feedback,
-                                                                                              0)   # 2
+                                                                                              0,
+                                                                                              desiredProgramOutput)   # 2
 
     return scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback
-
-# def callStepCountForAllPossibilities(teacherStepAndMarkInfo,
-#                                      studIfElseStepInfoDictList,
-#                                      scoredStepMark,
-#                                      totNoOfAdditionalSteps,
-#                                      totNoOfDeletedSteps,
-#                                      feedback):
-#
-#     stepScore = 0
-#     maxScore = stepScore
-#     additionalSteps=0
-#     maxAddSteps = 0
-#     deletedSteps = 0
-#     maxDelSteps = 0
-#     currentFeedback = ""
-#     maxFeedback = ""
-#
-#     maxElementIndex = -99
-#
-#     count = 0
-#
-#     while count < len(studIfElseStepInfoDictList):
-#         stepScore, additionalSteps, deletedSteps, currentFeedback = compareStepCounts('Input',
-#                                                                                       'noOfInputs',
-#                                                                                       'totInputMarks',
-#                                                                                       teacherStepAndMarkInfo,
-#                                                                                       studIfElseStepInfoDictList[count],
-#                                                                                       stepScore,
-#                                                                                       additionalSteps,
-#                                                                                       deletedSteps,
-#                                                                                       currentFeedback,
-#                                                                                       0)
-#
-#         stepScore, additionalSteps, deletedSteps, currentFeedback = compareStepCounts('Process',
-#                                                                                       'noOfProcesses',
-#                                                                                       'totProcessMarks',
-#                                                                                       teacherStepAndMarkInfo,
-#                                                                                       studIfElseStepInfoDictList[count],
-#                                                                                       stepScore,
-#                                                                                       additionalSteps,
-#                                                                                       deletedSteps,
-#                                                                                       currentFeedback,
-#                                                                                       4)
-#
-#         stepScore, additionalSteps, deletedSteps, currentFeedback = compareStepCounts('Output',
-#                                                                                       'noOfOutputs',
-#                                                                                       'totOutputMarks',
-#                                                                                       teacherStepAndMarkInfo,
-#                                                                                       studIfElseStepInfoDictList[count],
-#                                                                                       stepScore,
-#                                                                                       additionalSteps,
-#                                                                                       deletedSteps,
-#                                                                                       currentFeedback,
-#                                                                                       0)
-#
-#         stepScore, additionalSteps, deletedSteps, currentFeedback = compareStepCounts('Decision',
-#                                                                                       'noOfDecisions',
-#                                                                                       'totDecisionMarks',
-#                                                                                       teacherStepAndMarkInfo,
-#                                                                                       studIfElseStepInfoDictList[count],
-#                                                                                       stepScore,
-#                                                                                       additionalSteps,
-#                                                                                       deletedSteps,
-#                                                                                       currentFeedback,
-#                                                                                       0)
-#
-#         if stepScore > maxScore:
-#             maxScore = stepScore
-#             maxAddSteps = additionalSteps
-#             maxDelSteps = deletedSteps
-#             maxFeedback = currentFeedback
-#             maxElementIndex = count
-#
-#         stepScore = 0
-#         additionalSteps = 0
-#         deletedSteps = 0
-#         currentFeedback = ""
-#
-#         count = count + 1
-#
-#     scoredStepMark = scoredStepMark + maxScore
-#     totNoOfAdditionalSteps = totNoOfAdditionalSteps + maxAddSteps
-#     totNoOfDeletedSteps = totNoOfDeletedSteps + maxDelSteps
-#     feedback = feedback + maxFeedback
-#
-#     del studIfElseStepInfoDictList[maxElementIndex]
-#
-#     return scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback
-
-# def ifHasOnlyOnePath(graph,
-#                      stack,
-#                      stackAppendNode,
-#                      traversedNodes,
-#                      traversedCommonNodesAppendNode,
-#                      commonNodes,
-#                      currentNode,
-#                      ifNodes,
-#                      ifDictionary):
-#     stack.append(stackAppendNode)
-#
-#     traversedNodes.append(traversedCommonNodesAppendNode)
-#
-#     commonNodes.append(traversedCommonNodesAppendNode)
-#
-#     if not currentNode in ifNodes:
-#         ifNodes.append(currentNode)
-#
-#     noOfPathsToCommonNode = graph.data("MATCH (parent:Student)-[:TO|YES|NO]->(child:Student) WHERE child.key= {key} "
-#                                        "RETURN parent", parameters={"key": traversedCommonNodesAppendNode})
-#     if not currentNode in ifDictionary:
-#         ifDictionary[currentNode] = len(noOfPathsToCommonNode)
 
 
 def getAllIncorrectNodes(caller,
@@ -394,39 +291,6 @@ def handleIfStructureTraversal(caller,
             visitedNodes.append(currentNode)
 
     if ifFound == "false":
-        # if noCurrentChildNode[0]['child']['symbol'] == "Decision":
-        #     curNoChildCommonNode = graph.data(
-        #         "MATCH path1 = (currentDecision:" + caller + ")-[:YES]->(a:" + caller +
-        #         ")-[*]->(commonNode:" + caller + "), path2 = (currentDecision:" + caller +
-        #         ")-[:NO]->(b:" + caller + ")-[*]->" + "(commonNode:" + caller +
-        #         ") WHERE currentDecision.key={currentNodeKey} and " +
-        #         "path1 <> path2 RETURN DISTINCT commonNode",
-        #         parameters={"currentNodeKey": noCurrentChildNode[0]['child']['key']})
-        #
-        #     if not curNoChildCommonNode:
-        #         curNoChildCommonNode = graph.data(
-        #             "MATCH path1 = (currentDecision:" + caller + ")-[:YES]->(a:" + caller +
-        #             ")-[*]->(commonNode:" + caller + "), path2 = (currentDecision:" + caller +
-        #             ")-[:NO]->""(commonNode:" + caller + ") WHERE currentDecision.key={currentNodeKey} and " +
-        #             "path1 <> path2 RETURN DISTINCT commonNode",
-        #             parameters={"currentNodeKey": noCurrentChildNode[0]['child']['key']})
-        #
-        #     if not curNoChildCommonNode:
-        #         curNoChildCommonNode = graph.data(
-        #             "MATCH path1 = (currentDecision:" + caller + ")-[:YES]->(commonNode:" +
-        #             caller + "), path2 = (currentDecision:" + caller + ")-[:NO]->(b:" + caller +
-        #             ")-[*]->(commonNode:" + caller +
-        #             ") WHERE currentDecision.key={currentNodeKey} and path1 <> path2 RETURN " +
-        #             "DISTINCT commonNode",
-        #             parameters={"currentNodeKey": noCurrentChildNode[0]['child']['key']})
-        #
-        #     if curNoChildCommonNode[0]['commonNode']['key'] == currentCommonNode[0]['commonNode']['key']:
-        #         if not currentStructure:
-        #             currentStructure = "IfElseIf"
-        #     else:
-        #         if not currentStructure:
-        #             currentStructure = "IfElse"
-        # else:
         if not currentStructure:
             currentStructure = "IfElse"
 
@@ -521,7 +385,8 @@ def traverseStepsAndHandleDetails(caller,
                                   mainIfCompletedNoOfPaths,
                                   doWhileNodes,
                                   whileNodes,
-                                  nestedLevel):
+                                  nestedLevel,
+                                  desiredProgramOutput):
     isDoWhileLoop = "false"
 
     ifFound = ""
@@ -604,7 +469,7 @@ def traverseStepsAndHandleDetails(caller,
                             if currentNodeInfo[0]['node']['symbol'] == "Input":
                                 addStepMarkDetailsToDictionary('noOfInputs', 'totInputMarks', stepDetailsDictionary,
                                                                currentNodeInfo, 0)
-                            elif currentNodeInfo[0]['node']['symbol'] == "Process":
+                            elif currentNodeInfo[0]['node']['symbol'] == "Process" and desiredProgramOutput == "true":
                                 addStepMarkDetailsToDictionary('noOfProcesses', 'totProcessMarks', stepDetailsDictionary,
                                                                currentNodeInfo, 0)
                             elif currentNodeInfo[0]['node']['symbol'] == "Output":
@@ -628,7 +493,7 @@ def traverseStepsAndHandleDetails(caller,
 
                             addStepMarkDetailsToDictionary('noOfInputs', 'Student', stepDetailsDictionary, currentNodeInfo,
                                                            noOfSameInCurrentNode)
-                        elif currentNodeInfo[0]['node']['symbol'] == "Process":
+                        elif currentNodeInfo[0]['node']['symbol'] == "Process" and desiredProgramOutput == "true":
                             addStepMarkDetailsToDictionary('noOfProcesses', 'Student', stepDetailsDictionary, currentNodeInfo,
                                                            1)
                         elif currentNodeInfo[0]['node']['symbol'] == "Output":
@@ -918,7 +783,9 @@ def traverseStepsAndHandleDetails(caller,
     return lastNode, previousNode, ifNodes, ifDictionary, nestedLevel, breakType
 
 
-def markStudDFSFlowchartAnswer():
+def markStudDFSFlowchartAnswer(desiredProgramOutput,
+                               flowchartQuestionId,
+                               studentAnswerId):
     # Connect to Graph
     graph = connectToGraph()
 
@@ -997,7 +864,7 @@ def markStudDFSFlowchartAnswer():
                                                         teacherStepAndMarkInfo, teachVisitedNodes, teacherLastNode,
                                                         teachPrevNode, teachCommonNodes, teachIfNodes, teachIfDictionary,
                                                         teachMainIfCompletedNoOfPaths, teachDoWhileNodes, teachWhileNodes,
-                                                        teachNestedLevel)
+                                                        teachNestedLevel, desiredProgramOutput)
 
         studentLastNode, studPrevNode, studIfNodes, studIfDictionary, studNestedLevel, studBreakType = \
             traverseStepsAndHandleDetails('Student', graph,
@@ -1005,12 +872,17 @@ def markStudDFSFlowchartAnswer():
                                                         studentStepInfo, studVisitedNodes, studentLastNode, studPrevNode,
                                                         studCommonNodes, studIfNodes, studIfDictionary,
                                                         studMainIfCompletedNoOfPaths, studDoWhileNodes, studWhileNodes,
-                                                        studNestedLevel)
+                                                        studNestedLevel, desiredProgramOutput)
+
+        if desiredProgramOutput == "false":
+            feedback = feedback + 'Either the logic of the flowchart or the graphical structure of the flowchart is ' \
+                                  'incorrect. Please refer the teacher\'s answer diagram to identify all incorrect ' \
+                                  'symbols, text, and connections. '
 
         if teacherLastNode == "End" and studentLastNode == "End":
             scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback = \
                 callStepCountingForAllSymbols(teacherStepAndMarkInfo, studentStepInfo, scoredStepMark,
-                                              totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback)
+                                              totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback, desiredProgramOutput)
 
             if totNoOfAdditionalSteps == 0 and totNoOfDeletedSteps == 0:
                 feedback = feedback + 'All the steps are correct. Well Done!'
@@ -1020,21 +892,14 @@ def markStudDFSFlowchartAnswer():
             print(feedback)
 
             allocateMarksAndSaveToDatabase(scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback,
-                                        #   flowchartQuestionId, studentAnswerId)
-                                           46, 135)
+                                           flowchartQuestionId, studentAnswerId)
 
             markingFinished = "true"
 
         elif (teacherLastNode == "Decision" and studentLastNode == "Decision") or (teacherLastNode == "CommonNode" and studentLastNode == "CommonNode"):
-        # elif ((teacherLastNode == "If" or teacherLastNode == "IfNot") and (studentLastNode == "If" or
-        #         studentLastNode == "IfNot")) or ((teacherLastNode == "While" or teacherLastNode == "DoWhile") and
-        #         (studentLastNode == "While" or studentLastNode == "DoWhile")):
             scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback = \
                 callStepCountingForAllSymbols(teacherStepAndMarkInfo, studentStepInfo, scoredStepMark,
-                                              totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback)
-
-            teacherStepAndMarkInfo.clear()
-            studentStepInfo.clear()
+                                              totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback, desiredProgramOutput)
 
             if teacherLastNode == "Decision" and studentLastNode == "Decision":
                 if (teachBreakType == "Condition" and studBreakType == "Loop") or \
@@ -1042,7 +907,10 @@ def markStudDFSFlowchartAnswer():
 
                     # one mark is deducted for the incorrect decision node type which will be identified as correct
                     # above based on the Decision node count
-                    scoredStepMark = scoredStepMark - 1
+                    if desiredProgramOutput == "true":
+                        scoredStepMark = scoredStepMark - (teacherStepAndMarkInfo['totDecisionMarks'] / teacherStepAndMarkInfo['noOfDecisions'])
+                    else:
+                        scoredStepMark = scoredStepMark - ((teacherStepAndMarkInfo['totDecisionMarks'] / teacherStepAndMarkInfo['noOfDecisions'])/2)
 
                     if teachBreakType == "Condition" and studBreakType == "Loop":
                         caller = "TConditionSLoop"
@@ -1055,67 +923,42 @@ def markStudDFSFlowchartAnswer():
                                                                          teachVisitedNodes)
 
                     allocateMarksAndSaveToDatabase(scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps,
-                                                   feedback,
-                                                   #   flowchartQuestionId, studentAnswerId)
-                                                   46, 135)
+                                                   feedback, flowchartQuestionId, studentAnswerId)
 
                     markingFinished = "true"
+
+            teacherStepAndMarkInfo.clear()
+            studentStepInfo.clear()
         elif teacherLastNode == "End" and studentLastNode == "Decision":
             scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback = \
                 callStepCountingForAllSymbols(teacherStepAndMarkInfo, studentStepInfo, scoredStepMark,
-                                              totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback)
+                                              totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback, desiredProgramOutput)
 
             totNoOfAdditionalSteps, feedback = getAllIncorrectNodes('Student', graph, studentStack, totNoOfAdditionalSteps,
                                                                     feedback, studentTraversedNodes, studVisitedNodes)
 
             allocateMarksAndSaveToDatabase(scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback,
-                                           #   flowchartQuestionId, studentAnswerId)
-                                           46, 135)
+                                           flowchartQuestionId, studentAnswerId)
 
             markingFinished = "true"
         elif teacherLastNode == "Decision" and studentLastNode == "End":
             scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback = \
                 callStepCountingForAllSymbols(teacherStepAndMarkInfo, studentStepInfo, scoredStepMark,
-                                              totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback)
+                                              totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback, desiredProgramOutput)
 
             totNoOfDeletedSteps, feedback = getAllIncorrectNodes('Teacher', graph, teacherStack, totNoOfDeletedSteps,
                                                                  feedback, teacherTraversedNodes, teachVisitedNodes)
 
             allocateMarksAndSaveToDatabase(scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback,
-                                           #   flowchartQuestionId, studentAnswerId)
-                                           46, 135)
+                                           flowchartQuestionId, studentAnswerId)
 
             markingFinished = "true"
 
-        # elif teacherLastNode == "Decision" and studentLastNode == "CommonNode":
-        #     while not teacherLastNode == "CommonNode":
-        #         scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback = \
-        #             callStepCountForAllPossibilities(teacherStepAndMarkInfo, studIfElseStepInfoDictList, scoredStepMark,
-        #                                          totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback)
-        #
-        #         teacherStepAndMarkInfo.clear()
-        #
-        #         teacherLastNode, teachPrevNode, teachIfNodes, teachIfDictionary = traverseStepsAndHandleDetails('Teacher',
-        #                                                                                                         graph,
-        #                                                                                                         teacherStack,
-        #                                                                                                         teacherTraversedNodes,
-        #                                                                                                         teacherStepAndMarkInfo,
-        #                                                                                                         teachVisitedNodes,
-        #                                                                                                         teacherLastNode,
-        #                                                                                                         teachPrevNode,
-        #                                                                                                         teachCommonNodes,
-        #                                                                                                         teachIfNodes,
-        #                                                                                                         teachIfDictionary,
-        #                                                                                                         teachMainIfCompletedNoOfPaths,
-        #                                                                                                         teachIfElseStepInfoDictList)
-        #
-        #     if teacherLastNode == "CommonNode" and studentLastNode == "CommonNode":
-        #         scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback = \
-        #             callStepCountForAllPossibilities(teacherStepAndMarkInfo, studIfElseStepInfoDictList, scoredStepMark,
-        #                                              totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback)
-        #
-        #         teacherStepAndMarkInfo.clear()
-        #         studentStepInfo.clear()
-        #         studIfElseStepInfoDictList.clear()
+# markStudDFSFlowchartAnswer()
 
-markStudDFSFlowchartAnswer()
+def markFlowchartAnswer(flowchartQuestionId,
+                        studentAnswerId):
+    desiredResult = convertFlowchartToProgram(flowchartQuestionId)
+    markStudDFSFlowchartAnswer(desiredResult, flowchartQuestionId, studentAnswerId)
+
+# markFlowchartAnswer()
