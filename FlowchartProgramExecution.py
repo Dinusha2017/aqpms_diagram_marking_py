@@ -724,10 +724,6 @@ def executeStudentAnswerProgram(outputVariableNames,
 
 
 def convertFlowchartToProgram(flowchartQuestionId):
-    # directory = "StudentAnswerProgram"
-    # os.chdir(directory)
-    print(os.getcwd())
-
     studentAnswerFile = open("studentAnswer.py", "w")
     # studentAnswerFile.write("import sys\nimport time\n")
     studentAnswerFile.write("import sys\n")
@@ -751,13 +747,8 @@ def convertFlowchartToProgram(flowchartQuestionId):
     elif desiredProgramExecution == "false":
         print("Incorrect program execution")
 
-    print(os.getcwd())
-
-    # if os.path.isfile('studentAnswer.py'):
-    #     os.remove('studentAnswer.py')
-
-    # print('studentAnswer.py deleted')
-    # print(os.getcwd())
+    if os.path.isfile('studentAnswer.py'):
+        os.remove('studentAnswer.py')
 
     return desiredProgramExecution
 
