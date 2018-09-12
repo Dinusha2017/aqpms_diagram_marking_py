@@ -81,7 +81,8 @@ def allocateMarksAndSaveToDatabase(scoredStepMark,
                                    noOfDeletedNodes,
                                    feedback,
                                    flowchartQuestionId,
-                                   studentAnswerId):
+                                   studentAnswerId,
+                                   desiredProgramOutput):
     connection = connectToMySQL()
     cur = connection.cursor()
     cur.execute("SELECT sequenceMark FROM flowchart_question WHERE flowchartqId = %s", (flowchartQuestionId))
@@ -95,6 +96,10 @@ def allocateMarksAndSaveToDatabase(scoredStepMark,
 
     totalAddDeleteDiff = noOfAdditionalNodes + noOfDeletedNodes
 
+    if desiredProgramOutput == "false" and scoredStepMark >= 2:
+        # 2 marks are deducted anyway for incorrect program execution answers if scoredMark is greater than or equal to 2
+        scoredStepMark = scoredStepMark - 2
+
     if scoredStepMark == 0:
         scoredSequenceMark = 0
     else:
@@ -103,6 +108,14 @@ def allocateMarksAndSaveToDatabase(scoredStepMark,
             scoredSequenceMark = sequenceMark - (totalAddDeleteDiff/5) * sequenceMarkForAddDeleteDeductions
         else:
             scoredSequenceMark = sequenceMark - sequenceMarkForAddDeleteDeductions
+
+        if desiredProgramOutput == "false":
+            scoredSequenceMark = scoredSequenceMark - (4 / 10) * scoredSequenceMark
+
+    if desiredProgramOutput == "false":
+        feedback = feedback + 'Either the logic of the flowchart or the graphical structure of the flowchart is ' \
+                              'incorrect. Please refer the teacher\'s answer diagram to identify all incorrect ' \
+                              'symbols, text, and connections. '
 
     scoredFullMark = scoredStepMark + scoredSequenceMark
 
@@ -268,7 +281,7 @@ def handleIfStructureTraversal(caller,
             if not currentStructure:
                 currentStructure = "If"
             # stack.append(yesCurrentChildNode[0]['child']['key'])
-            ifHasOnlyOnePath(graph, stack, yesCurrentChildNode[0]['child']['key'],
+            ifHasOnlyOnePath(caller, graph, stack, yesCurrentChildNode[0]['child']['key'],
                              traversedNodes, noCurrentChildNode[0]['child']['key'], commonNodes,
                              currentNode, ifNodes, ifDictionary)
             visitedNodes.append(currentNode)
@@ -285,7 +298,7 @@ def handleIfStructureTraversal(caller,
             if not currentStructure:
                 currentStructure = "IfNot"
             # stack.append(noCurrentChildNode[0]['child']['key'])
-            ifHasOnlyOnePath(graph, stack, noCurrentChildNode[0]['child']['key'], traversedNodes,
+            ifHasOnlyOnePath(caller, graph, stack, noCurrentChildNode[0]['child']['key'], traversedNodes,
                              yesCurrentChildNode[0]['child']['key'], commonNodes, currentNode,
                              ifNodes, ifDictionary)
             visitedNodes.append(currentNode)
@@ -456,6 +469,7 @@ def traverseStepsAndHandleDetails(caller,
                         if not currentNodeOtherParents[loopcount]['parent']['key'] in traversedNodes and \
                                 currentNodeOtherParents[loopcount]['parent']['symbol'] == "Decision":
                             isDoWhileLoop = "true"
+                            break
                         loopcount = loopcount + 1
 
                 # this check is for do while, as symbols inside loop must not be added to dictionary until the loop decision is reached
@@ -562,7 +576,8 @@ def traverseStepsAndHandleDetails(caller,
 
                     if ((yesCurrentChildNode[0]['child']['key'] in traversedNodes or
                             noCurrentChildNode[0]['child']['key'] in traversedNodes) and
-                            traversedNodes.count(currentNode) == 1 and not (whileNodes or doWhileNodes or commonNodes)):
+                            traversedNodes.count(currentNode) == 1 and not (whileNodes or commonNodes)) \
+                            or currentNode in doWhileNodes:
 
                         doWhileFound = "true"
                         breakType = "Loop"
@@ -672,7 +687,7 @@ def traverseStepsAndHandleDetails(caller,
                                     "MATCH path1 = (currentDecision:" + caller + ")-[:YES]->(a:" + caller + ")-[*]->(commonNode:" +
                                     caller + "), path2 = (currentDecision:" + caller + ")-[:NO]->(b:" + caller + ")-[*]->" +
                                     "(commonNode:" + caller + ") WHERE currentDecision.key={currentNodeKey} and path1 <> path2 " +
-                                    "RETURN length(path2)",
+                                    "and currentDecision <> commonNode RETURN length(path2)",
                                     parameters={"currentNodeKey": currentNode})
 
                                 if not curCommonNodePathLength:
@@ -680,15 +695,16 @@ def traverseStepsAndHandleDetails(caller,
                                         "MATCH path1 = (currentDecision:" + caller + ")-[:YES]->(a:" + caller + ")-[*]->" +
                                         "(commonNode:" + caller + "), path2 = (currentDecision:" + caller + ")-[:NO]->" +
                                         "(commonNode:" + caller + ") WHERE currentDecision.key={currentNodeKey} and " +
-                                        "path1 <> path2 RETURN length(path2)",
+                                        "path1 <> path2 and currentDecision <> commonNode RETURN length(path2)",
                                         parameters={"currentNodeKey": currentNode})
 
                                 if not curCommonNodePathLength:
                                     curCommonNodePathLength = graph.data(
                                         "MATCH path1 = (currentDecision:" + caller + ")-[:YES]->(commonNode:" + caller + "), " +
                                         "path2 = (currentDecision:" + caller + ")-[:NO]->(b:" + caller + ")-[*]->(commonNode:" +
-                                        caller + ") WHERE currentDecision.key={currentNodeKey} and path1 <> path2 RETURN " +
-                                        "length(path1)", parameters={"currentNodeKey": currentNode})
+                                        caller + ") WHERE currentDecision.key={currentNodeKey} and path1 <> path2 and " +
+                                        "currentDecision <> commonNode RETURN length(path1)",
+                                        parameters={"currentNodeKey": currentNode})
 
                                 if not curCommonNodePathLength:
                                     breakType = "Loop"
@@ -874,25 +890,21 @@ def markStudDFSFlowchartAnswer(desiredProgramOutput,
                                                         studMainIfCompletedNoOfPaths, studDoWhileNodes, studWhileNodes,
                                                         studNestedLevel, desiredProgramOutput)
 
-        if desiredProgramOutput == "false":
-            feedback = feedback + 'Either the logic of the flowchart or the graphical structure of the flowchart is ' \
-                                  'incorrect. Please refer the teacher\'s answer diagram to identify all incorrect ' \
-                                  'symbols, text, and connections. '
-
         if teacherLastNode == "End" and studentLastNode == "End":
             scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback = \
                 callStepCountingForAllSymbols(teacherStepAndMarkInfo, studentStepInfo, scoredStepMark,
                                               totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback, desiredProgramOutput)
 
-            if totNoOfAdditionalSteps == 0 and totNoOfDeletedSteps == 0:
-                feedback = feedback + 'All the steps are correct. Well Done!'
-            else:
-                feedback = feedback + 'Please refer teacher\'s answer diagram to identify the additional and deleted nodes indicated in the feedback. '
+            if desiredProgramOutput == "true":
+                if totNoOfAdditionalSteps == 0 and totNoOfDeletedSteps == 0:
+                    feedback = feedback + 'All the steps are correct. Well Done!'
+                else:
+                    feedback = feedback + 'Please refer teacher\'s answer diagram to identify the additional and deleted nodes indicated in the feedback. '
 
             print(feedback)
 
             allocateMarksAndSaveToDatabase(scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback,
-                                           flowchartQuestionId, studentAnswerId)
+                                           flowchartQuestionId, studentAnswerId, desiredProgramOutput)
 
             markingFinished = "true"
 
@@ -923,7 +935,7 @@ def markStudDFSFlowchartAnswer(desiredProgramOutput,
                                                                          teachVisitedNodes)
 
                     allocateMarksAndSaveToDatabase(scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps,
-                                                   feedback, flowchartQuestionId, studentAnswerId)
+                                                   feedback, flowchartQuestionId, studentAnswerId, desiredProgramOutput)
 
                     markingFinished = "true"
 
@@ -938,7 +950,7 @@ def markStudDFSFlowchartAnswer(desiredProgramOutput,
                                                                     feedback, studentTraversedNodes, studVisitedNodes)
 
             allocateMarksAndSaveToDatabase(scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback,
-                                           flowchartQuestionId, studentAnswerId)
+                                           flowchartQuestionId, studentAnswerId, desiredProgramOutput)
 
             markingFinished = "true"
         elif teacherLastNode == "Decision" and studentLastNode == "End":
@@ -950,15 +962,15 @@ def markStudDFSFlowchartAnswer(desiredProgramOutput,
                                                                  feedback, teacherTraversedNodes, teachVisitedNodes)
 
             allocateMarksAndSaveToDatabase(scoredStepMark, totNoOfAdditionalSteps, totNoOfDeletedSteps, feedback,
-                                           flowchartQuestionId, studentAnswerId)
+                                           flowchartQuestionId, studentAnswerId, desiredProgramOutput)
 
             markingFinished = "true"
 
-# markStudDFSFlowchartAnswer()
+# markStudDFSFlowchartAnswer("true", 46, 135)
 
 def markFlowchartAnswer(flowchartQuestionId,
                         studentAnswerId):
     desiredResult = convertFlowchartToProgram(flowchartQuestionId)
     markStudDFSFlowchartAnswer(desiredResult, flowchartQuestionId, studentAnswerId)
 
-# markFlowchartAnswer()
+markFlowchartAnswer(46, 135)

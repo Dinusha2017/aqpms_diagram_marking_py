@@ -30,7 +30,8 @@ def indentNestedWhileAppendString(indent, line):
         indentCount = indentCount + 1
     return line
 
-def ifHasOnlyOnePath(graph,
+def ifHasOnlyOnePath(caller,
+                     graph,
                      stack,
                      stackAppendNode,
                      traversedNodes,
@@ -48,17 +49,17 @@ def ifHasOnlyOnePath(graph,
     if not currentNode in ifNodes:
         ifNodes.append(currentNode)
 
-    # noOfPathsToCommonNode = graph.data("MATCH paths = (currentDecision:Student)-[*]->"
-    #                                    "(commonNode:Student) WHERE currentDecision.key={currentNodeKey} and "
-    #                                    "commonNode.key={commonNodeKey}  RETURN count(paths)",
-    #                                    parameters={"currentNodeKey": currentNode,
-    #                                                "commonNodeKey": traversedCommonNodesAppendNode})
+    noOfPathsToCommonNode = graph.data("MATCH paths = (currentDecision:Student)-[*]->"
+                                       "(commonNode:Student) WHERE currentDecision.key={currentNodeKey} and "
+                                       "commonNode.key={commonNodeKey}  RETURN count(paths)",
+                                       parameters={"currentNodeKey": currentNode,
+                                                   "commonNodeKey": traversedCommonNodesAppendNode})
 
-    noOfPathsToCommonNode = graph.data("MATCH (parent:Student)-[:TO|YES|NO]->(child:Student) WHERE child.key= {key} "
-                                       "RETURN parent", parameters={"key": traversedCommonNodesAppendNode})
+    # noOfPathsToCommonNode = graph.data("MATCH (parent:" + caller + ")-[:TO|YES|NO]->(child:" + caller + ") WHERE child.key= {key} "
+    #                                    "RETURN parent", parameters={"key": traversedCommonNodesAppendNode})
     if not currentNode in ifDictionary:
-        # ifDictionary[currentNode] = noOfPathsToCommonNode[0]['count(paths)']
-        ifDictionary[currentNode] = len(noOfPathsToCommonNode)
+        ifDictionary[currentNode] = noOfPathsToCommonNode[0]['count(paths)']
+        # ifDictionary[currentNode] = len(noOfPathsToCommonNode)
 
 
 def handleWhileTypeConversions(caller,
@@ -113,6 +114,155 @@ def handleWhileTypeConversions(caller,
             whileTypeNodes.append(lastWhileNodeKey)
 
     return line, indent, unindentWhile, traversedNodes
+
+
+def handleWhileTraversal(loopPath,
+                         traversedNodes,
+                         currentNode,
+                         yesCurrentChildNode,
+                         noCurrentChildNode):
+    currentStructure = "While"
+
+    if loopPath[0]['TYPE(r)'] == "YES":
+        whileOrNot = "while "
+        if traversedNodes.count(currentNode) == 1:
+            whileNextNode = yesCurrentChildNode[0]['child']['key']
+        elif traversedNodes.count(currentNode) > 1:
+            whileNextNode = noCurrentChildNode[0]['child']['key']
+    elif loopPath[0]['TYPE(r)'] == "NO":
+        whileOrNot = "while not "
+        if traversedNodes.count(currentNode) == 1:
+            whileNextNode = noCurrentChildNode[0]['child']['key']
+        elif traversedNodes.count(currentNode) > 1:
+            whileNextNode = yesCurrentChildNode[0]['child']['key']
+
+    return whileOrNot, whileNextNode, currentStructure
+
+
+def handleIfTypeConversions(graph,
+                            stack,
+                            currentNode,
+                            traversedNodes,
+                            noChildParents,
+                            yesChildParents,
+                            noCurrentChildNode,
+                            yesCurrentChildNode,
+                            currentText,
+                            commonNodes,
+                            ifNodes,
+                            ifDictionary,
+                            visitedNodes,
+                            mainIfCompletedNoOfPaths):
+    ifFound = "false"
+
+    # currentCommonNode = graph.data(
+    #     "MATCH (yesPathNode:Student)-->(commonNode:Student)<--(noPathNode:Student) WHERE " +
+    #     "yesPathNode.key={yesPathNodeKey} and noPathNode.key={noPathNodeKey} RETURN commonNode",
+    #     parameters={"yesPathNodeKey": yesCurrentChildNode[0]['child']['key'],
+    #                 "noPathNodeKey": noCurrentChildNode[0]['child']['key']})
+
+    currentCommonNode = graph.data(
+        "MATCH path1 = (currentDecision:Student)-[:YES]->(a:Student)-[*]->(commonNode:Student), "
+        "path2 = (currentDecision:Student)-[:NO]->(b:Student)-[*]->(commonNode:Student)" +
+        "WHERE currentDecision.key={currentNodeKey} and path1 <> path2 RETURN DISTINCT commonNode",
+        parameters={"currentNodeKey": currentNode})
+
+    if len(noChildParents) > 1 and traversedNodes.count(currentNode) == 1:
+        if not currentCommonNode:
+            currentCommonNode = graph.data(
+                "MATCH path1 = (currentDecision:Student)-[:YES]->(a:Student)-[*]->(commonNode:Student), "
+                "path2 = (currentDecision:Student)-[:NO]->(commonNode:Student)" +
+                "WHERE currentDecision.key={currentNodeKey} and path1 <> path2 RETURN DISTINCT commonNode",
+                parameters={"currentNodeKey": currentNode})
+
+        if noCurrentChildNode[0]['child']['key'] == currentCommonNode[0]['commonNode']['key']:
+            ifFound = "true"
+
+            currentStructure = "If"
+
+            line = "if " + currentText.replace("?", "") + ":"
+
+            ifHasOnlyOnePath('Student', graph, stack, yesCurrentChildNode[0]['child']['key'], traversedNodes,
+                             noCurrentChildNode[0]['child']['key'], commonNodes, currentNode, ifNodes,
+                             ifDictionary)
+    elif len(yesChildParents) > 1 and traversedNodes.count(currentNode) == 1:
+        if not currentCommonNode:
+            currentCommonNode = graph.data(
+                "MATCH path1 = (currentDecision:Student)-[:YES]->(commonNode:Student), "
+                "path2 = (currentDecision:Student)-[:NO]->(b:Student)-[*]->(commonNode:Student)" +
+                "WHERE currentDecision.key={currentNodeKey} and path1 <> path2 RETURN DISTINCT commonNode",
+                parameters={"currentNodeKey": currentNode})
+
+        if yesCurrentChildNode[0]['child']['key'] == currentCommonNode[0]['commonNode']['key']:
+            ifFound = "true"
+
+            currentStructure = "IfNot"
+
+            line = "if not " + currentText.replace("?", "") + ":"
+
+            ifHasOnlyOnePath('Student', graph, stack, noCurrentChildNode[0]['child']['key'], traversedNodes,
+                             yesCurrentChildNode[0]['child']['key'], commonNodes, currentNode, ifNodes,
+                             ifDictionary)
+
+    if ifFound == "false":
+        if noCurrentChildNode[0]['child']['symbol'] == "Decision" and \
+                not yesCurrentChildNode[0]['child']['symbol'] == "Decision":
+            currentStructure = "IfElseIf"
+        else:
+            currentStructure = "IfElse"
+
+        if not currentNode in ifNodes:
+            commonNodes.append(currentCommonNode[0]['commonNode']['key'])
+            ifNodes.append(currentNode)
+
+        noOfPathsToCommonNode = graph.data("MATCH paths = (currentDecision:Student)-[*]->"
+            "(commonNode:Student) WHERE currentDecision.key={currentNodeKey} and "
+            "commonNode.key={commonNodeKey}  RETURN count(paths)", parameters={"currentNodeKey": currentNode,
+            "commonNodeKey":currentCommonNode[0]['commonNode']['key']})
+
+        # noOfPathsToCommonNode = graph.data("MATCH (parent:Student)-[:TO|YES|NO]->(child:Student) WHERE "
+        #                                    "child.key= {key} RETURN parent", parameters={"key":
+        #                                                                     currentCommonNode[0]['commonNode']['key']})
+
+        # noOfPathsToCommonNode = graph.data(
+        #     "MATCH path1 = (currentDecision:Student)-[:YES]->(a:Student)-[*]->(commonNode:Student), "
+        #     "path2 = (currentDecision:Student)-[:NO]->(b:Student)-[*]->(commonNode:Student)" +
+        #     "WHERE currentDecision.key={currentNodeKey} and commonNode.key={commonNodeKey} and path1 <> path2 RETURN " +
+        #     "count(path1), count(path2)", parameters={"currentNodeKey": currentNode,
+        #                                        "commonNodeKey":currentCommonNode[0]['commonNode']['key']})
+
+        if yesCurrentChildNode[0]['child']['key'] in visitedNodes:
+            line = "else:"
+            stack.append(noCurrentChildNode[0]['child']['key'])
+
+            visitedNodes.append(currentNode)
+
+            if currentNode == ifNodes[0]:
+                completedNoOfPaths = graph.data("MATCH paths = (currentDecision:Student)-[:YES]->"
+                                                "(a:Student)-[*]->(commonNode:Student) WHERE currentDecision.key={currentNodeKey} and "
+                                                "commonNode.key={commonNodeKey}  RETURN count(paths)",
+                                                parameters={"currentNodeKey":
+                                                                currentNode,
+                                                            "commonNodeKey": currentCommonNode[0]['commonNode']['key']})
+
+                mainIfCompletedNoOfPaths = completedNoOfPaths[0]['count(paths)']
+        else:
+            line = "if " + currentText.replace("?", "") + ":"
+            stack.append(currentNode)
+            stack.append(yesCurrentChildNode[0]['child']['key'])
+
+            # no need to do again in no path, as key will be added here in the yes path, so it will anyway be there in the dictionary
+            if not ifNodes[0] in visitedNodes:
+                if not currentNode in ifDictionary:
+                    ifDictionary[currentNode] = noOfPathsToCommonNode[0]['count(paths)']
+                    # ifDictionary[currentNode] = len(noOfPathsToCommonNode)
+            else:
+                if not currentNode in ifDictionary:
+                    ifDictionary[currentNode] = mainIfCompletedNoOfPaths + noOfPathsToCommonNode[0]['count(paths)']
+                    # BUG: else if bug in marking: noOfPathsToCommonNode is correct   .... mainIfCompletedNoOfPaths +
+                    # ifDictionary[currentNode] = len(noOfPathsToCommonNode)
+
+    return line, currentStructure, mainIfCompletedNoOfPaths
 
 
 def runDFSAndAddStatementToPyFile(studentAnswerFile):
@@ -285,137 +435,34 @@ def runDFSAndAddStatementToPyFile(studentAnswerFile):
                 # print(yesCurrentChildNode)
                 # print(yesCurrentChildNode[0]['child']['key'])
 
-                # 1 means previous node is only parent, it has to be either IF/DO WHILE
-                if len(currentNodeParents) == 1:
-                    if ((yesCurrentChildNode[0]['child']['key'] in visitedNodes or noCurrentChildNode[0]['child']['key'] in visitedNodes) \
-                                            and traversedNodes.count(currentNode) == 1) or currentNode in doWhileNodes:
-                        doWhileFound = "true"
+                if ((yesCurrentChildNode[0]['child']['key'] in visitedNodes or noCurrentChildNode[0]['child']['key'] in visitedNodes) \
+                                        and traversedNodes.count(currentNode) == 1) or currentNode in doWhileNodes:
+                    doWhileFound = "true"
 
-                        if yesCurrentChildNode[0]['child']['key'] in visitedNodes:
-                            whileOrNot = "while "
-                            if traversedNodes.count(currentNode) == 1:
-                                whileNextNode = yesCurrentChildNode[0]['child']['key']
-                            elif traversedNodes.count(currentNode) > 1:
-                                whileNextNode = noCurrentChildNode[0]['child']['key']
-                        elif noCurrentChildNode[0]['child']['key'] in visitedNodes:
-                            whileOrNot = "while not "
-                            if traversedNodes.count(currentNode) == 1:
-                                whileNextNode = noCurrentChildNode[0]['child']['key']
-                            elif traversedNodes.count(currentNode) > 1:
-                                whileNextNode = yesCurrentChildNode[0]['child']['key']
+                    if yesCurrentChildNode[0]['child']['key'] in visitedNodes:
+                        whileOrNot = "while "
+                        if traversedNodes.count(currentNode) == 1:
+                            whileNextNode = yesCurrentChildNode[0]['child']['key']
+                        elif traversedNodes.count(currentNode) > 1:
+                            whileNextNode = noCurrentChildNode[0]['child']['key']
+                    elif noCurrentChildNode[0]['child']['key'] in visitedNodes:
+                        whileOrNot = "while not "
+                        if traversedNodes.count(currentNode) == 1:
+                            whileNextNode = noCurrentChildNode[0]['child']['key']
+                        elif traversedNodes.count(currentNode) > 1:
+                            whileNextNode = yesCurrentChildNode[0]['child']['key']
 
-                    if doWhileFound == "false":
-                        ifFound = "false"
+                    currentStructure = "DoWhile"
 
-                        # currentCommonNode = graph.data(
-                        #     "MATCH (yesPathNode:Student)-->(commonNode:Student)<--(noPathNode:Student) WHERE " +
-                        #     "yesPathNode.key={yesPathNodeKey} and noPathNode.key={noPathNodeKey} RETURN commonNode",
-                        #     parameters={"yesPathNodeKey": yesCurrentChildNode[0]['child']['key'],
-                        #                 "noPathNodeKey": noCurrentChildNode[0]['child']['key']})
+                    line, indent, unindentWhile, traversedNodes = handleWhileTypeConversions(currentStructure, stack,
+                                                                                             whileNextNode,
+                                                                                             traversedNodes,
+                                                                                             currentNode, indent,
+                                                                                             unindentWhile,
+                                                                                             whileOrNot, currentText,
+                                                                                             doWhileNodes, visitedNodes)
 
-                        currentCommonNode = graph.data(
-                            "MATCH path1 = (currentDecision:Student)-[:YES]->(a:Student)-[*]->(commonNode:Student), "
-                            "path2 = (currentDecision:Student)-[:NO]->(b:Student)-[*]->(commonNode:Student)" +
-                            "WHERE currentDecision.key={currentNodeKey} and path1 <> path2 RETURN DISTINCT commonNode",
-                            parameters={"currentNodeKey": currentNode})
-
-                        if len(noChildParents) > 1 and traversedNodes.count(currentNode) == 1:
-                            if not currentCommonNode:
-                                currentCommonNode = graph.data(
-                                    "MATCH path1 = (currentDecision:Student)-[:YES]->(a:Student)-[*]->(commonNode:Student), "
-                                    "path2 = (currentDecision:Student)-[:NO]->(commonNode:Student)" +
-                                    "WHERE currentDecision.key={currentNodeKey} and path1 <> path2 RETURN DISTINCT commonNode",
-                                    parameters={"currentNodeKey": currentNode})
-
-                            if noCurrentChildNode[0]['child']['key'] == currentCommonNode[0]['commonNode']['key']:
-                                ifFound = "true"
-
-                                currentStructure = "If"
-
-                                line = "if " + currentText.replace("?", "") + ":"
-
-                                ifHasOnlyOnePath(graph, stack, yesCurrentChildNode[0]['child']['key'], traversedNodes,
-                                                 noCurrentChildNode[0]['child']['key'], commonNodes, currentNode, ifNodes,
-                                                 ifDictionary)
-                        elif len(yesChildParents) > 1 and traversedNodes.count(currentNode) == 1:
-                            if not currentCommonNode:
-                                currentCommonNode = graph.data(
-                                    "MATCH path1 = (currentDecision:Student)-[:YES]->(commonNode:Student), "
-                                    "path2 = (currentDecision:Student)-[:NO]->(b:Student)-[*]->(commonNode:Student)" +
-                                    "WHERE currentDecision.key={currentNodeKey} and path1 <> path2 RETURN DISTINCT commonNode",
-                                    parameters={"currentNodeKey": currentNode})
-
-                            if yesCurrentChildNode[0]['child']['key'] == currentCommonNode[0]['commonNode']['key']:
-                                ifFound = "true"
-
-                                currentStructure = "IfNot"
-
-                                line = "if not " + currentText.replace("?", "") + ":"
-
-                                ifHasOnlyOnePath(graph, stack, noCurrentChildNode[0]['child']['key'], traversedNodes,
-                                                yesCurrentChildNode[0]['child']['key'], commonNodes, currentNode, ifNodes,
-                                                ifDictionary)
-
-                        if ifFound == "false":
-                            if noCurrentChildNode[0]['child']['symbol'] == "Decision" and \
-                                    not yesCurrentChildNode[0]['child']['symbol'] == "Decision":
-                                currentStructure = "IfElseIf"
-                            else:
-                                currentStructure = "IfElse"
-
-                            if not currentNode in ifNodes:
-                                commonNodes.append(currentCommonNode[0]['commonNode']['key'])
-                                ifNodes.append(currentNode)
-
-                            # noOfPathsToCommonNode = graph.data("MATCH paths = (currentDecision:Student)-[*]->"
-                            #     "(commonNode:Student) WHERE currentDecision.key={currentNodeKey} and "
-                            #     "commonNode.key={commonNodeKey}  RETURN count(paths)", parameters={"currentNodeKey": currentNode,
-                            #     "commonNodeKey":currentCommonNode[0]['commonNode']['key']})
-
-                            noOfPathsToCommonNode = graph.data("MATCH (parent:Student)-[:TO|YES|NO]->(child:Student) WHERE "
-                                                               "child.key= {key} RETURN parent", parameters={"key":
-                                                                currentCommonNode[0]['commonNode']['key']})
-
-                            if yesCurrentChildNode[0]['child']['key'] in visitedNodes:
-                                line = "else:"
-                                stack.append(noCurrentChildNode[0]['child']['key'])
-
-                                visitedNodes.append(currentNode)
-
-                                if currentNode == ifNodes[0]:
-                                    completedNoOfPaths = graph.data("MATCH paths = (currentDecision:Student)-[:YES]->"
-                                        "(a:Student)-[*]->(commonNode:Student) WHERE currentDecision.key={currentNodeKey} and "
-                                        "commonNode.key={commonNodeKey}  RETURN count(paths)", parameters={"currentNodeKey":
-                                        currentNode, "commonNodeKey": currentCommonNode[0]['commonNode']['key']})
-
-                                    mainIfCompletedNoOfPaths = completedNoOfPaths[0]['count(paths)']
-                            else:
-                                line = "if " + currentText.replace("?", "") + ":"
-                                stack.append(currentNode)
-                                stack.append(yesCurrentChildNode[0]['child']['key'])
-
-                                # no need to do again in no path, as key will be added here in the yes path, so it will anyway be there in the dictionary
-                                if not ifNodes[0] in visitedNodes:
-                                    if not currentNode in ifDictionary:
-                                        # ifDictionary[currentNode] = noOfPathsToCommonNode[0]['count(paths)']
-                                        ifDictionary[currentNode] = len(noOfPathsToCommonNode)
-                                else:
-                                    if not currentNode in ifDictionary:
-                                        # ifDictionary[currentNode] = mainIfCompletedNoOfPaths + noOfPathsToCommonNode[0]['count(paths)']
-                                        ifDictionary[currentNode] = mainIfCompletedNoOfPaths + len(noOfPathsToCommonNode)
-
-
-                    elif doWhileFound == "true":
-                        currentStructure = "DoWhile"
-
-                        line, indent, unindentWhile, traversedNodes = handleWhileTypeConversions(currentStructure, stack, whileNextNode,
-                                                                  traversedNodes, currentNode, indent, unindentWhile,
-                                                                  whileOrNot, currentText, doWhileNodes, visitedNodes)
-
-                # more than 1 parent means it has to be a WHILE
                 else:
-                    currentStructure = "While"
-
                     if (len(whileNodes) == 0 and traversedNodes.count(currentNode) == 1) or \
                             (len(whileNodes) == 1 and traversedNodes.count(currentNode) == 2):
                         loopPath = graph.data("MATCH (currentNode:Student)-[r:YES|NO]->(nextNode:Student)-[*]->"
@@ -427,7 +474,8 @@ def runDFSAndAddStatementToPyFile(studentAnswerFile):
                                               "(currentNode:Student) WHERE currentNode.key = {currentNodeKey} "
                                               "WITH path, r MATCH (previousIfNode: Student) WHERE previousIfNode.key = "
                                               "{previousIfNodeKey} AND NOT previousIfNode IN NODES(path) RETURN TYPE(r)",
-                                              parameters={"currentNodeKey": currentNode, "previousIfNodeKey": whileNodes[0]})
+                                              parameters={"currentNodeKey": currentNode,
+                                                          "previousIfNodeKey": whileNodes[0]})
                     elif (len(whileNodes) == 2 and traversedNodes.count(currentNode) == 1) or \
                             (len(whileNodes) == 3 and traversedNodes.count(currentNode) == 2):
                         loopPath = graph.data("MATCH path = (currentNode:Student)-[r:YES|NO]->(nextNode:Student)-[*]->"
@@ -441,23 +489,147 @@ def runDFSAndAddStatementToPyFile(studentAnswerFile):
                                                           "previousIfNodeOneKey": whileNodes[0],
                                                           "previousIfNodeTwoKey": whileNodes[1]})
 
-                    if loopPath[0]['TYPE(r)'] == "YES":
-                        whileOrNot = "while "
-                        if traversedNodes.count(currentNode) == 1:
-                            whileNextNode = yesCurrentChildNode[0]['child']['key']
-                        elif traversedNodes.count(currentNode) > 1:
-                            whileNextNode = noCurrentChildNode[0]['child']['key']
-                    elif loopPath[0]['TYPE(r)'] == "NO":
-                        whileOrNot = "while not "
-                        if traversedNodes.count(currentNode) == 1:
-                            whileNextNode = noCurrentChildNode[0]['child']['key']
-                        elif traversedNodes.count(currentNode) > 1:
-                            whileNextNode = yesCurrentChildNode[0]['child']['key']
+                    if not loopPath:
+                        line, currentStructure, mainIfCompletedNoOfPaths = handleIfTypeConversions(graph, stack,
+                                                                                                   currentNode,
+                                                                                                   traversedNodes,
+                                                                                                   noChildParents,
+                                                                                                   yesChildParents,
+                                                                                                   noCurrentChildNode,
+                                                                                                   yesCurrentChildNode,
+                                                                                                   currentText,
+                                                                                                   commonNodes,
+                                                                                                   ifNodes,
+                                                                                                   ifDictionary,
+                                                                                                   visitedNodes,
+                                                                                                   mainIfCompletedNoOfPaths)
+                    else:
+                        if commonNodes or whileNodes or doWhileNodes:
+                            if (len(whileNodes) == 0 and traversedNodes.count(currentNode) == 1) or \
+                                    (len(whileNodes) == 1 and traversedNodes.count(currentNode) == 2) or \
+                                    (len(whileNodes) == 0 and traversedNodes.count(currentNode) == 2):
+                                # if traversedNodes.count(currentNode) == 1 or traversedNodes.count(currentNode) == 2:
+                                loopPathLength = graph.data(
+                                    "MATCH path = (currentNode:Student)-[r:YES|NO]->(nextNode:Student)-[*]->" +
+                                    "(currentNode:Student) WHERE currentNode.key = " +
+                                    "{currentNodeKey} RETURN length(path)", parameters={"currentNodeKey": currentNode})
+                            elif (len(whileNodes) == 1 and traversedNodes.count(currentNode) == 1) or \
+                                    (len(whileNodes) == 2 and traversedNodes.count(currentNode) == 2):
+                                loopPathLength = graph.data(
+                                    "MATCH path = (currentNode:Student)-[r:YES|NO]->(nextNode:Student)-[*]->" +
+                                    "(currentNode:Student) WHERE currentNode.key = {currentNodeKey} WITH path, r " +
+                                    "MATCH (previousIfNode:Student) WHERE previousIfNode.key = {previousIfNodeKey} " +
+                                    "AND NOT previousIfNode IN NODES(path) RETURN length(path)",
+                                    parameters={"currentNodeKey": currentNode, "previousIfNodeKey": whileNodes[0]})
+                            elif (len(whileNodes) == 2 and traversedNodes.count(currentNode) == 1) or \
+                                    (len(whileNodes) == 3 and traversedNodes.count(currentNode) == 2):
+                                loopPathLength = graph.data(
+                                    "MATCH path = (currentNode:Student)-[r:YES|NO]->(nextNode:Student)-[*]->" +
+                                    "(currentNode:Student) WHERE currentNode.key = {currentNodeKey} WITH path, r " +
+                                    "MATCH (previousIfNodeOne:Student), "
+                                    "(previousIfNodeTwo:Student) WHERE (previousIfNodeOne.key = "
+                                    "{previousIfNodeOneKey} AND NOT previousIfNodeOne IN NODES(path)) AND "
+                                    "(previousIfNodeTwo.key = {previousIfNodeTwoKey} AND NOT previousIfNodeTwo "
+                                    "IN NODES(path)) RETURN length(path)",
+                                    parameters={"currentNodeKey": currentNode,
+                                                "previousIfNodeOneKey": whileNodes[0],
+                                                "previousIfNodeTwoKey": whileNodes[1]})
 
-                    line, indent, unindentWhile, traversedNodes = handleWhileTypeConversions(currentStructure, stack, whileNextNode,
-                                                                             traversedNodes, currentNode, indent,
-                                                                             unindentWhile, whileOrNot, currentText,
-                                                                             whileNodes, visitedNodes)
+                            curCommonNodePathLength = graph.data(
+                                "MATCH path1 = (currentDecision:Student)-[:YES]->(a:Student)-[*]->(commonNode:Student), " +
+                                "path2 = (currentDecision:Student)-[:NO]->(b:Student)-[*]->" +
+                                "(commonNode:Student) WHERE currentDecision.key={currentNodeKey} and path1 <> path2 " +
+                                "and currentDecision <> commonNode RETURN length(path2)",
+                                parameters={"currentNodeKey": currentNode})
+
+                            if not curCommonNodePathLength:
+                                curCommonNodePathLength = graph.data(
+                                    "MATCH path1 = (currentDecision:Student)-[:YES]->(a:Student)-[*]->" +
+                                    "(commonNode:Student), path2 = (currentDecision:Student)-[:NO]->" +
+                                    "(commonNode:Student) WHERE currentDecision.key={currentNodeKey} and " +
+                                    "path1 <> path2 and currentDecision <> commonNode RETURN length(path2)",
+                                    parameters={"currentNodeKey": currentNode})
+
+                            if not curCommonNodePathLength:
+                                curCommonNodePathLength = graph.data(
+                                    "MATCH path1 = (currentDecision:Student)-[:YES]->(commonNode:Student), " +
+                                    "path2 = (currentDecision:Student)-[:NO]->(b:Student)-[*]->(commonNode:Student) " +
+                                    "WHERE currentDecision.key={currentNodeKey} and path1 <> path2 and " +
+                                    "currentDecision <> commonNode RETURN length(path1)",
+                                    parameters={"currentNodeKey": currentNode})
+
+                            if not curCommonNodePathLength:
+                                whileOrNot, whileNextNode, currentStructure = handleWhileTraversal(loopPath,
+                                                                                                   traversedNodes,
+                                                                                                   currentNode,
+                                                                                                   yesCurrentChildNode,
+                                                                                                   noCurrentChildNode)
+
+                                line, indent, unindentWhile, traversedNodes = handleWhileTypeConversions(
+                                    currentStructure, stack, whileNextNode,
+                                    traversedNodes, currentNode, indent,
+                                    unindentWhile, whileOrNot, currentText,
+                                    whileNodes, visitedNodes)
+                            elif not loopPathLength:
+                                line, currentStructure, mainIfCompletedNoOfPaths = handleIfTypeConversions(graph,
+                                                                                                           stack,
+                                                                                                           currentNode,
+                                                                                                           traversedNodes,
+                                                                                                           noChildParents,
+                                                                                                           yesChildParents,
+                                                                                                           noCurrentChildNode,
+                                                                                                           yesCurrentChildNode,
+                                                                                                           currentText,
+                                                                                                           commonNodes,
+                                                                                                           ifNodes,
+                                                                                                           ifDictionary,
+                                                                                                           visitedNodes,
+                                                                                                           mainIfCompletedNoOfPaths)
+                            else:
+                                if loopPathLength[0]['length(path)'] > curCommonNodePathLength[0]['length(path2)']:
+                                    line, currentStructure, mainIfCompletedNoOfPaths = handleIfTypeConversions(graph,
+                                                                                                               stack,
+                                                                                                               currentNode,
+                                                                                                               traversedNodes,
+                                                                                                               noChildParents,
+                                                                                                               yesChildParents,
+                                                                                                               noCurrentChildNode,
+                                                                                                               yesCurrentChildNode,
+                                                                                                               currentText,
+                                                                                                               commonNodes,
+                                                                                                               ifNodes,
+                                                                                                               ifDictionary,
+                                                                                                               visitedNodes,
+                                                                                                               mainIfCompletedNoOfPaths)
+                                else:
+                                    whileOrNot, whileNextNode, currentStructure = handleWhileTraversal(loopPath,
+                                                                                                       traversedNodes,
+                                                                                                       currentNode,
+                                                                                                       yesCurrentChildNode,
+                                                                                                       noCurrentChildNode)
+
+                                    line, indent, unindentWhile, traversedNodes = handleWhileTypeConversions(
+                                        currentStructure, stack, whileNextNode,
+                                        traversedNodes, currentNode, indent,
+                                        unindentWhile, whileOrNot, currentText,
+                                        whileNodes, visitedNodes)
+                        else:
+                            whileOrNot, whileNextNode, currentStructure = handleWhileTraversal(loopPath, traversedNodes,
+                                                                                               currentNode,
+                                                                                               yesCurrentChildNode,
+                                                                                               noCurrentChildNode)
+
+                            line, indent, unindentWhile, traversedNodes = handleWhileTypeConversions(currentStructure,
+                                                                                                     stack,
+                                                                                                     whileNextNode,
+                                                                                                     traversedNodes,
+                                                                                                     currentNode,
+                                                                                                     indent,
+                                                                                                     unindentWhile,
+                                                                                                     whileOrNot,
+                                                                                                     currentText,
+                                                                                                     whileNodes,
+                                                                                                     visitedNodes)
 
                 if unindentWhile == "false":
                     studentAnswerFile.write(line + "\n")
@@ -552,6 +724,10 @@ def executeStudentAnswerProgram(outputVariableNames,
 
 
 def convertFlowchartToProgram(flowchartQuestionId):
+    # directory = "StudentAnswerProgram"
+    # os.chdir(directory)
+    print(os.getcwd())
+
     studentAnswerFile = open("studentAnswer.py", "w")
     # studentAnswerFile.write("import sys\nimport time\n")
     studentAnswerFile.write("import sys\n")
@@ -565,6 +741,8 @@ def convertFlowchartToProgram(flowchartQuestionId):
 
     studentAnswerFile.close()
 
+    desiredProgramExecution = "false"
+
     if possibleToGenerateProgram == "true":
         desiredProgramExecution = executeStudentAnswerProgram(outputVariableNames, flowchartQuestionId)
 
@@ -573,8 +751,13 @@ def convertFlowchartToProgram(flowchartQuestionId):
     elif desiredProgramExecution == "false":
         print("Incorrect program execution")
 
-    if os.path.isfile('studentAnswer.py'):
-        os.remove('studentAnswer.py')
+    print(os.getcwd())
+
+    # if os.path.isfile('studentAnswer.py'):
+    #     os.remove('studentAnswer.py')
+
+    # print('studentAnswer.py deleted')
+    # print(os.getcwd())
 
     return desiredProgramExecution
 
@@ -585,4 +768,4 @@ def convertFlowchartToProgram(flowchartQuestionId):
 # print(proc.communicate()[0])
 
 
-# convertFlowchartToProgram()
+# convertFlowchartToProgram(46)
