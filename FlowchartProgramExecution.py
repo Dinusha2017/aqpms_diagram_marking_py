@@ -49,16 +49,28 @@ def ifHasOnlyOnePath(caller,
     if not currentNode in ifNodes:
         ifNodes.append(currentNode)
 
-    noOfPathsToCommonNode = graph.data("MATCH paths = (currentDecision:Student)-[*]->"
-                                       "(commonNode:Student) WHERE currentDecision.key={currentNodeKey} and "
-                                       "commonNode.key={commonNodeKey}  RETURN count(paths)",
-                                       parameters={"currentNodeKey": currentNode,
-                                                   "commonNodeKey": traversedCommonNodesAppendNode})
+    commonNodePaths = graph.data("MATCH paths = (currentDecision:" + caller + ")-[*]->(commonNode:" + caller + ") WHERE " +
+                                 "currentDecision.key={currentNodeKey} and commonNode.key={commonNodeKey} " +
+                                 "RETURN count(paths)", parameters={"currentNodeKey": currentNode,
+                                                                    "commonNodeKey": traversedCommonNodesAppendNode})
+
+    commonNodeLoopPaths = graph.data("MATCH paths = (currentDecision:" + caller + ")-[*]->(commonNode:" + caller + ")-[*]->(commonNode:" + caller + ") WHERE " +
+                                     "currentDecision.key={currentNodeKey} and commonNode.key={commonNodeKey} RETURN count(paths)",
+                                     parameters={"currentNodeKey": currentNode, "commonNodeKey": traversedCommonNodesAppendNode})
+
+    noOfPathsToCommonNode = commonNodePaths[0]['count(paths)'] - commonNodeLoopPaths[0]['count(paths)']
+
+    # noOfPathsToCommonNode = graph.data("MATCH paths = (currentDecision:Student)-[*]->"
+    #                                    "(commonNode:Student) WHERE currentDecision.key={currentNodeKey} and "
+    #                                    "commonNode.key={commonNodeKey}  RETURN count(paths)",
+    #                                    parameters={"currentNodeKey": currentNode,
+    #                                                "commonNodeKey": traversedCommonNodesAppendNode})
 
     # noOfPathsToCommonNode = graph.data("MATCH (parent:" + caller + ")-[:TO|YES|NO]->(child:" + caller + ") WHERE child.key= {key} "
     #                                    "RETURN parent", parameters={"key": traversedCommonNodesAppendNode})
     if not currentNode in ifDictionary:
-        ifDictionary[currentNode] = noOfPathsToCommonNode[0]['count(paths)']
+        ifDictionary[currentNode] = noOfPathsToCommonNode
+        # [0]['count(paths)']
         # ifDictionary[currentNode] = len(noOfPathsToCommonNode)
 
 
@@ -215,10 +227,22 @@ def handleIfTypeConversions(graph,
             commonNodes.append(currentCommonNode[0]['commonNode']['key'])
             ifNodes.append(currentNode)
 
-        noOfPathsToCommonNode = graph.data("MATCH paths = (currentDecision:Student)-[*]->"
-            "(commonNode:Student) WHERE currentDecision.key={currentNodeKey} and "
-            "commonNode.key={commonNodeKey}  RETURN count(paths)", parameters={"currentNodeKey": currentNode,
-            "commonNodeKey":currentCommonNode[0]['commonNode']['key']})
+        # noOfPathsToCommonNode = graph.data("MATCH paths = (currentDecision:Student)-[*]->" +
+        #     "(commonNode:Student), loopPaths=(commonNode:Student)-[*]->(commonNode:Student) " +
+        #     "WHERE currentDecision.key={currentNodeKey} and commonNode.key={commonNodeKey} and paths<>loopPaths " +
+        #     "RETURN count(paths)", parameters={"currentNodeKey": currentNode,
+        #                                        "commonNodeKey": currentCommonNode[0]['commonNode']['key']})
+
+        commonNodePaths = graph.data("MATCH paths = (currentDecision:Student)-[*]->(commonNode:Student) WHERE " +
+                                           "currentDecision.key={currentNodeKey} and commonNode.key={commonNodeKey} " +
+                                           "RETURN count(paths)", parameters={"currentNodeKey": currentNode,
+                                                        "commonNodeKey": currentCommonNode[0]['commonNode']['key']})
+
+        commonNodeLoopPaths = graph.data("MATCH paths = (currentDecision:Student)-[*]->(commonNode:Student)-[*]->(commonNode:Student) WHERE " +
+                                     "currentDecision.key={currentNodeKey} and commonNode.key={commonNodeKey} RETURN count(paths)",
+                                     parameters={"currentNodeKey": currentNode, "commonNodeKey": currentCommonNode[0]['commonNode']['key']})
+
+        noOfPathsToCommonNode = commonNodePaths[0]['count(paths)'] - commonNodeLoopPaths[0]['count(paths)']
 
         # noOfPathsToCommonNode = graph.data("MATCH (parent:Student)-[:TO|YES|NO]->(child:Student) WHERE "
         #                                    "child.key= {key} RETURN parent", parameters={"key":
@@ -254,11 +278,13 @@ def handleIfTypeConversions(graph,
             # no need to do again in no path, as key will be added here in the yes path, so it will anyway be there in the dictionary
             if not ifNodes[0] in visitedNodes:
                 if not currentNode in ifDictionary:
-                    ifDictionary[currentNode] = noOfPathsToCommonNode[0]['count(paths)']
+                    ifDictionary[currentNode] = noOfPathsToCommonNode
+                    #noOfPathsToCommonNode[0]['count(paths)']
                     # ifDictionary[currentNode] = len(noOfPathsToCommonNode)
             else:
                 if not currentNode in ifDictionary:
-                    ifDictionary[currentNode] = mainIfCompletedNoOfPaths + noOfPathsToCommonNode[0]['count(paths)']
+                    ifDictionary[currentNode] = mainIfCompletedNoOfPaths + noOfPathsToCommonNode
+                    #noOfPathsToCommonNode[0]['count(paths)']
                     # BUG: else if bug in marking: noOfPathsToCommonNode is correct   .... mainIfCompletedNoOfPaths +
                     # ifDictionary[currentNode] = len(noOfPathsToCommonNode)
 
@@ -328,6 +354,11 @@ def runDFSAndAddStatementToPyFile(studentAnswerFile):
                     break
                 elif traversedNodes.count(currentNode) == ifDictionary.get(currentIfKey, "none"):
                     continueWithFlow = 'true'
+
+                    if not currentNode in commonNodes:
+                        traversedNodes[:] = (key for key in traversedNodes if key != currentNode)
+                        traversedNodes.append(currentNode)
+
                     continue
             else:
                 continueWithFlow = 'true'
@@ -465,7 +496,7 @@ def runDFSAndAddStatementToPyFile(studentAnswerFile):
                 else:
                     if (len(whileNodes) == 0 and traversedNodes.count(currentNode) == 1) or \
                             (len(whileNodes) == 1 and traversedNodes.count(currentNode) == 2):
-                        loopPath = graph.data("MATCH (currentNode:Student)-[r:YES|NO]->(nextNode:Student)-[*]->"
+                        loopPath = graph.data("MATCH (currentNode:Student)-[r:YES|NO]->(nextNode:Student)-[*]->" +
                                               "(currentNode:Student) WHERE currentNode.key = {currentNodeKey} RETURN DISTINCT TYPE(r)",
                                               parameters={"currentNodeKey": currentNode})
                     elif (len(whileNodes) == 1 and traversedNodes.count(currentNode) == 1) or \
@@ -700,7 +731,7 @@ def executeStudentAnswerProgram(outputVariableNames,
         # print(programOutput["Tot"])
 
         count = 0
-        # DGAMLK implement output number of matches mark allocation
+
         for output in outputs:
             if len(redirected_programOutput) > count:
                 if not all(x.isalpha() or x.isspace() for x in output):
@@ -759,4 +790,4 @@ def convertFlowchartToProgram(flowchartQuestionId):
 # print(proc.communicate()[0])
 
 
-# convertFlowchartToProgram(46)
+# convertFlowchartToProgram(55)

@@ -5,8 +5,8 @@ import re
 
 from FlowchartProgramExecution import ifHasOnlyOnePath, convertFlowchartToProgram
 
-# createNeo4jGraph("Flowchart", "Teacher", 46)
-# createNeo4jGraph("Flowchart", "Student", 135)
+# createNeo4jGraph("Flowchart", "Teacher", 56)
+# createNeo4jGraph("Flowchart", "Student", 141)
 
 def addStepMarkDetailsToDictionary(numberPresentKey,
                                    stepMarkKey,
@@ -259,7 +259,8 @@ def handleIfStructureTraversal(caller,
                                ifNodes,
                                ifDictionary,
                                visitedNodes,
-                               ifFound):
+                               ifFound,
+                               mainIfCompletedNoOfPaths):
     currentCommonNode = graph.data(
         "MATCH path1 = (currentDecision:" + caller + ")-[:YES]->(a:" + caller + ")-[*]->(commonNode:" +
         caller + "), path2 = (currentDecision:" + caller + ")-[:NO]->(b:" + caller + ")-[*]->" +
@@ -313,10 +314,27 @@ def handleIfStructureTraversal(caller,
             commonNodes.append(currentCommonNode[0]['commonNode']['key'])
             ifNodes.append(currentNode)
 
-        # DGAMLK fix loop parent bug
-        noOfPathsToCommonNode = graph.data(
-            "MATCH (parent:" + caller + ")-[:TO|YES|NO]->(child:" + caller + ") WHERE " +
-            "child.key= {key} RETURN parent", parameters={"key": currentCommonNode[0]['commonNode']['key']})
+        commonNodePaths = graph.data("MATCH paths = (currentDecision:" + caller + ")-[*]->(commonNode:" + caller + ") WHERE " +
+                                     "currentDecision.key={currentNodeKey} and commonNode.key={commonNodeKey} " +
+                                     "RETURN count(paths)", parameters={"currentNodeKey": currentNode,
+                                                                        "commonNodeKey":
+                                                                            currentCommonNode[0]['commonNode']['key']})
+
+        commonNodeLoopPaths = graph.data("MATCH paths = (currentDecision:" + caller + ")-[*]->(commonNode:" + caller + ")-[*]->(commonNode:" + caller + ") WHERE " +
+                                     "currentDecision.key={currentNodeKey} and commonNode.key={commonNodeKey} RETURN count(paths)",
+                                     parameters={"currentNodeKey": currentNode, "commonNodeKey": currentCommonNode[0]['commonNode']['key']})
+
+        noOfPathsToCommonNode = commonNodePaths[0]['count(paths)'] - commonNodeLoopPaths[0]['count(paths)']
+
+        # noOfPathsToCommonNode = graph.data(
+        #     "MATCH (parent:" + caller + ")-[:TO|YES|NO]->(child:" + caller + ") WHERE " +
+        #     "child.key= {key} RETURN parent", parameters={"key": currentCommonNode[0]['commonNode']['key']})
+
+        # noOfPathsToCommonNode = graph.data("MATCH paths = (currentDecision:" + caller + ")-[*]->" +
+        #                         "(commonNode:" + caller + "), loopPaths=(commonNode:" + caller + ")-[*]->(commonNode:" + caller + ") " +
+        #                         "WHERE currentDecision.key={currentNodeKey} and commonNode.key={commonNodeKey} and paths<>loopPaths " +
+        #                         "RETURN count(paths)", parameters={"currentNodeKey": currentNode,
+        #                         "commonNodeKey": currentCommonNode[0]['commonNode']['key']})
 
         if yesCurrentChildNode[0]['child']['key'] in visitedNodes:
             stack.append(noCurrentChildNode[0]['child']['key'])
@@ -338,15 +356,17 @@ def handleIfStructureTraversal(caller,
             # no need to do again in no path, as key will be added here in the yes path, so it will anyway be there in the dictionary
             if not ifNodes[0] in visitedNodes:
                 if not currentNode in ifDictionary:
-                    # ifDictionary[currentNode] = noOfPathsToCommonNode[0]['count(paths)']
-                    ifDictionary[currentNode] = len(noOfPathsToCommonNode)
+                    ifDictionary[currentNode] = noOfPathsToCommonNode
+                    #noOfPathsToCommonNode[0]['count(paths)']
+                    # ifDictionary[currentNode] = len(noOfPathsToCommonNode)
             else:
                 if not currentNode in ifDictionary:
-                    # ifDictionary[currentNode] = mainIfCompletedNoOfPaths + noOfPathsToCommonNode[0]['count(paths)']
+                    ifDictionary[currentNode] = mainIfCompletedNoOfPaths + noOfPathsToCommonNode
+                    #noOfPathsToCommonNode[0]['count(paths)']
                     # ifDictionary[currentNode] = mainIfCompletedNoOfPaths + len(
                     #     noOfPathsToCommonNode)
                     # BUG: else if bug in marking: noOfPathsToCommonNode is correct
-                    ifDictionary[currentNode] = len(noOfPathsToCommonNode)
+                    # ifDictionary[currentNode] = len(noOfPathsToCommonNode)
 
     return currentStructure, ifFound
 
@@ -438,6 +458,10 @@ def traverseStepsAndHandleDetails(caller,
                     if not (commonNodes or whileNodes or doWhileNodes):
                         nestedLevel = 0
                         breakType = "Condition"
+
+                        if not currentNode in commonNodes:
+                            traversedNodes[:] = (key for key in traversedNodes if key != currentNode)
+
                         return lastNode, previousNode, ifNodes, ifDictionary, nestedLevel, breakType
                     else:
                         continueWithFlow = 'true'
@@ -650,7 +674,8 @@ def traverseStepsAndHandleDetails(caller,
                                                                                        traversedNodes, noCurrentChildNode,
                                                                                        yesCurrentChildNode, currentStructure,
                                                                                        commonNodes, ifNodes, ifDictionary,
-                                                                                       visitedNodes, ifFound)
+                                                                                       visitedNodes, ifFound,
+                                                                                       mainIfCompletedNoOfPaths)
                         else:
                             if commonNodes or whileNodes or doWhileNodes:
                                 if (len(whileNodes) == 0 and traversedNodes.count(currentNode) == 1) or \
@@ -734,7 +759,8 @@ def traverseStepsAndHandleDetails(caller,
                                                                                                yesCurrentChildNode,
                                                                                                currentStructure, commonNodes,
                                                                                                ifNodes, ifDictionary,
-                                                                                               visitedNodes, ifFound)
+                                                                                               visitedNodes, ifFound,
+                                                                                               mainIfCompletedNoOfPaths)
                                     else:
                                         breakType = "Loop"
                                         lastNode, previousNode, ifNodes, ifDictionary, currentStructure = \
@@ -973,4 +999,4 @@ def markFlowchartAnswer(flowchartQuestionId,
     desiredResult = convertFlowchartToProgram(flowchartQuestionId)
     markStudDFSFlowchartAnswer(desiredResult, flowchartQuestionId, studentAnswerId)
 
-markFlowchartAnswer(46, 135)
+# markFlowchartAnswer(56, 141)
