@@ -113,4 +113,4 @@ def markFlowchartQuestion(question_Id):
     return markDiagram(question_Id, "Flowchart")    
 
 if __name__ == '__main__':
-    webapp.run(host = '127.0.0.1', port = 5000, debug = True)  #   138.197.211.217
+    webapp.run(host = '142.93.208.98', port = 5000, debug = True)  #   127.0.0.1

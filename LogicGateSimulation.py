@@ -7,7 +7,7 @@ from py2neo import Node
 from CreateGraph import connectToGraph
 # from CreateGraph import createBDDNode, createBDDRelationship
 
-mySQLhostname = '206.189.209.170'
+mySQLhostname = '178.128.158.92'
 mySQLusername = 'aqpmsuser'
 mySQLpassword = 'aqpms'
 mySQLdatabase = 'question_marking_system'
