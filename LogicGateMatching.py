@@ -6,7 +6,7 @@ from LogicGateSimulation import simulateLogicGate
 
 import json
 
-mySQLhostname = '178.128.158.92'
+mySQLhostname = '104.248.116.101'
 mySQLusername = 'aqpmsuser'
 mySQLpassword = 'aqpms'
 mySQLdatabase = 'question_marking_system'
