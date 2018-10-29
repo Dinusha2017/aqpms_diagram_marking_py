@@ -6,16 +6,6 @@ from DbConnection import connectToMySQL
 
 import json
 
-# print("NodeArray: ")
-# print(json['nodeDataArray'])
-# print("Text of first node: ")
-# print(json['nodeDataArray'][0]['text'])
-# print("length of nodeDataArray: " + str(len(json['nodeDataArray'])))
-# print("linkDataArray: ")
-# print(json['linkDataArray'])
-# print("from of first relationship: ")
-# print(json['linkDataArray'][0]['from'])
-
 def connectToGraph():
     #Authenticate user
     py2neo.authenticate("localhost:7474", "neo4j", "neo4jDINU")
@@ -82,9 +72,7 @@ def createRelationships(json, diagramType, graphType):
     print("Relationship Creation finished")
 
 def createNeo4jGraph(graphType, diagramType, diagramId):
-    print('Inside createNeo4jGraph')
     connection = connectToMySQL()
-    print('Got connected to MySQL')
     cur = connection.cursor()
 
     if graphType == "Block" and diagramType == "Teacher":
@@ -101,11 +89,8 @@ def createNeo4jGraph(graphType, diagramType, diagramId):
         cur.execute("SELECT answerDiagram FROM flowchart_stud_answer WHERE flowchartStudAnsId = %s", (diagramId))    
 
     resultSet = cur.fetchone()
-    print(resultSet)
     cur.close()
     connection.close()
-
-    print('Answer Diagram Retrieved')
 
     jsonData = json.loads(resultSet[0])
 
@@ -127,18 +112,6 @@ def deleteAllAfterMarking():
     graph.run("MATCH (n) DETACH DELETE n")
 
     print("All Graph Deletion finished")
-
-# def createBDDNode(key, inputLbl):
-#     graph = connectToGraph()
-#     node = Node("TBDD", key=key, inputLabel=inputLbl)
-#     graph.create(node)
-
-# def createBDDRelationship(fromKey, toKey, relationLbl):
-#     graph = connectToGraph()
-#     fromNode = graph.find_one("TBDD", property_key='key', property_value=fromKey)
-#     toNode = graph.find_one("TBDD", property_key='key', property_value=toKey)
-#     relationship = Relationship(fromNode, relationLbl, toNode)
-#     graph.create(relationship)    
 
 
 

@@ -12,9 +12,6 @@ from io import StringIO
 import string
 import random
 
-# createNeo4jGraph("Flowchart", "Teacher", 46)
-# createNeo4jGraph("Flowchart", "Student", 135)
-
 
 def indentLine(indent, studentAnswerFile):
     indentCount = 0
@@ -59,19 +56,8 @@ def ifHasOnlyOnePath(caller,
                                      parameters={"currentNodeKey": currentNode, "commonNodeKey": traversedCommonNodesAppendNode})
 
     noOfPathsToCommonNode = commonNodePaths[0]['count(paths)'] - commonNodeLoopPaths[0]['count(paths)']
-
-    # noOfPathsToCommonNode = graph.data("MATCH paths = (currentDecision:Student)-[*]->"
-    #                                    "(commonNode:Student) WHERE currentDecision.key={currentNodeKey} and "
-    #                                    "commonNode.key={commonNodeKey}  RETURN count(paths)",
-    #                                    parameters={"currentNodeKey": currentNode,
-    #                                                "commonNodeKey": traversedCommonNodesAppendNode})
-
-    # noOfPathsToCommonNode = graph.data("MATCH (parent:" + caller + ")-[:TO|YES|NO]->(child:" + caller + ") WHERE child.key= {key} "
-    #                                    "RETURN parent", parameters={"key": traversedCommonNodesAppendNode})
     if not currentNode in ifDictionary:
         ifDictionary[currentNode] = noOfPathsToCommonNode
-        # [0]['count(paths)']
-        # ifDictionary[currentNode] = len(noOfPathsToCommonNode)
 
 
 def handleWhileTypeConversions(caller,
@@ -167,12 +153,6 @@ def handleIfTypeConversions(graph,
                             mainIfCompletedNoOfPaths):
     ifFound = "false"
 
-    # currentCommonNode = graph.data(
-    #     "MATCH (yesPathNode:Student)-->(commonNode:Student)<--(noPathNode:Student) WHERE " +
-    #     "yesPathNode.key={yesPathNodeKey} and noPathNode.key={noPathNodeKey} RETURN commonNode",
-    #     parameters={"yesPathNodeKey": yesCurrentChildNode[0]['child']['key'],
-    #                 "noPathNodeKey": noCurrentChildNode[0]['child']['key']})
-
     currentCommonNode = graph.data(
         "MATCH path1 = (currentDecision:Student)-[:YES]->(a:Student)-[*]->(commonNode:Student), "
         "path2 = (currentDecision:Student)-[:NO]->(b:Student)-[*]->(commonNode:Student)" +
@@ -227,12 +207,6 @@ def handleIfTypeConversions(graph,
             commonNodes.append(currentCommonNode[0]['commonNode']['key'])
             ifNodes.append(currentNode)
 
-        # noOfPathsToCommonNode = graph.data("MATCH paths = (currentDecision:Student)-[*]->" +
-        #     "(commonNode:Student), loopPaths=(commonNode:Student)-[*]->(commonNode:Student) " +
-        #     "WHERE currentDecision.key={currentNodeKey} and commonNode.key={commonNodeKey} and paths<>loopPaths " +
-        #     "RETURN count(paths)", parameters={"currentNodeKey": currentNode,
-        #                                        "commonNodeKey": currentCommonNode[0]['commonNode']['key']})
-
         commonNodePaths = graph.data("MATCH paths = (currentDecision:Student)-[*]->(commonNode:Student) WHERE " +
                                            "currentDecision.key={currentNodeKey} and commonNode.key={commonNodeKey} " +
                                            "RETURN count(paths)", parameters={"currentNodeKey": currentNode,
@@ -243,17 +217,6 @@ def handleIfTypeConversions(graph,
                                      parameters={"currentNodeKey": currentNode, "commonNodeKey": currentCommonNode[0]['commonNode']['key']})
 
         noOfPathsToCommonNode = commonNodePaths[0]['count(paths)'] - commonNodeLoopPaths[0]['count(paths)']
-
-        # noOfPathsToCommonNode = graph.data("MATCH (parent:Student)-[:TO|YES|NO]->(child:Student) WHERE "
-        #                                    "child.key= {key} RETURN parent", parameters={"key":
-        #                                                                     currentCommonNode[0]['commonNode']['key']})
-
-        # noOfPathsToCommonNode = graph.data(
-        #     "MATCH path1 = (currentDecision:Student)-[:YES]->(a:Student)-[*]->(commonNode:Student), "
-        #     "path2 = (currentDecision:Student)-[:NO]->(b:Student)-[*]->(commonNode:Student)" +
-        #     "WHERE currentDecision.key={currentNodeKey} and commonNode.key={commonNodeKey} and path1 <> path2 RETURN " +
-        #     "count(path1), count(path2)", parameters={"currentNodeKey": currentNode,
-        #                                        "commonNodeKey":currentCommonNode[0]['commonNode']['key']})
 
         if yesCurrentChildNode[0]['child']['key'] in visitedNodes:
             line = "else:"
@@ -279,14 +242,9 @@ def handleIfTypeConversions(graph,
             if not ifNodes[0] in visitedNodes:
                 if not currentNode in ifDictionary:
                     ifDictionary[currentNode] = noOfPathsToCommonNode
-                    #noOfPathsToCommonNode[0]['count(paths)']
-                    # ifDictionary[currentNode] = len(noOfPathsToCommonNode)
             else:
                 if not currentNode in ifDictionary:
                     ifDictionary[currentNode] = mainIfCompletedNoOfPaths + noOfPathsToCommonNode
-                    #noOfPathsToCommonNode[0]['count(paths)']
-                    # BUG: else if bug in marking: noOfPathsToCommonNode is correct   .... mainIfCompletedNoOfPaths +
-                    # ifDictionary[currentNode] = len(noOfPathsToCommonNode)
 
     return line, currentStructure, mainIfCompletedNoOfPaths
 
@@ -462,10 +420,6 @@ def runDFSAndAddStatementToPyFile(studentAnswerFile):
 
                 unindentWhile = "false"
 
-                # print('Yes Node')
-                # print(yesCurrentChildNode)
-                # print(yesCurrentChildNode[0]['child']['key'])
-
                 if ((yesCurrentChildNode[0]['child']['key'] in visitedNodes or noCurrentChildNode[0]['child']['key'] in visitedNodes) \
                                         and traversedNodes.count(currentNode) == 1) or currentNode in doWhileNodes:
                     doWhileFound = "true"
@@ -539,7 +493,6 @@ def runDFSAndAddStatementToPyFile(studentAnswerFile):
                             if (len(whileNodes) == 0 and traversedNodes.count(currentNode) == 1) or \
                                     (len(whileNodes) == 1 and traversedNodes.count(currentNode) == 2) or \
                                     (len(whileNodes) == 0 and traversedNodes.count(currentNode) == 2):
-                                # if traversedNodes.count(currentNode) == 1 or traversedNodes.count(currentNode) == 2:
                                 loopPathLength = graph.data(
                                     "MATCH path = (currentNode:Student)-[r:YES|NO]->(nextNode:Student)-[*]->" +
                                     "(currentNode:Student) WHERE currentNode.key = " +
@@ -705,8 +658,6 @@ def executeStudentAnswerProgram(outputVariableNames,
     else:
         print('file exists')
 
-    # exec(open("studentAnswer.py").read(), globals(), programOutput)
-
     # redirect the standard output to a string until the end of the exec method call
     old_stdout = sys.stdout
     redirected_programOutput = sys.stdout = StringIO()
@@ -723,19 +674,11 @@ def executeStudentAnswerProgram(outputVariableNames,
         # redirected output has new line characters to separate outputs. Therefore, split and store them for later use.
         redirected_programOutput = redirected_programOutput.splitlines()
 
-        print('redirected program output value:')
-        print(redirected_programOutput)
-
-        # print('retrieved output: ')
-        # print(programOutput)
-        # print(programOutput["Tot"])
-
         count = 0
 
         for output in outputs:
             if len(redirected_programOutput) > count:
                 if not all(x.isalpha() or x.isspace() for x in output):
-                    # if not float(output) == programOutput[outputVariableNames[count]]:
                     if not float(output) == float(redirected_programOutput[count]):
                         desiredProgramExecution = "false"
                         break
@@ -782,12 +725,3 @@ def convertFlowchartToProgram(flowchartQuestionId):
         os.remove('studentAnswer.py')
 
     return desiredProgramExecution
-
-    # sys.argv = ["studentAnswer.py", number1, number2]
-    # print(output["sum"])
-
-# proc = subprocess.Popen(["studentAnswer.py", number1, number2], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-# print(proc.communicate()[0])
-
-
-# convertFlowchartToProgram(55)

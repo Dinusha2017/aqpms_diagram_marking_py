@@ -6,10 +6,7 @@ from LogicGateSimulation import simulateLogicGate
 
 import json
 
-mySQLhostname = '104.248.116.101'
-mySQLusername = 'aqpmsuser'
-mySQLpassword = 'aqpms'
-mySQLdatabase = 'question_marking_system'
+from DbConnection import connectToMySQL
 
 
 def detectUndetectedGates(caller,
@@ -24,11 +21,6 @@ def detectUndetectedGates(caller,
     while nodeStack:
 
         currentNode = nodeStack.pop()
-
-        print('caller')
-        print(caller)
-        print('detectUndetectedGates currentNode')
-        print(currentNode)
 
         if caller == "additionalNodes" or caller == "addOrSubNodes":
             currentNodeChildNodes = graph.data(
@@ -68,10 +60,6 @@ def getAllStudentNodeKeysList():
     return studentNodesList
 
 
-
-# getAllStudentNodeKeysList()
-
-
 def getTotalNoOfTeacherNodes():
     graph = connectToGraph()
 
@@ -79,9 +67,6 @@ def getTotalNoOfTeacherNodes():
         "MATCH (node:Teacher) RETURN node.key")
 
     return len(studentNodes)
-
-# print(getTotalNoOfTeacherNodes())
-
 
 
 def allocateMarksToLogicGateAnswerAndSaveToDatabase(matchedCompletedStudentNodes,
@@ -93,7 +78,7 @@ def allocateMarksToLogicGateAnswerAndSaveToDatabase(matchedCompletedStudentNodes
                                                     feedback,
                                                     logicGateQuestionId, 
                                                     studentAnswerId):
-    connection = pymysql.connect(host=mySQLhostname, user=mySQLusername, passwd=mySQLpassword, db=mySQLdatabase)
+    connection = connectToMySQL()
     cur = connection.cursor()
     cur.execute("SELECT symbolMark, sequenceMark FROM logic_gate_question WHERE logicgateqId = %s", (logicGateQuestionId))
     resultSet = cur.fetchone()
@@ -103,7 +88,6 @@ def allocateMarksToLogicGateAnswerAndSaveToDatabase(matchedCompletedStudentNodes
     sequenceMark = resultSet[1]
 
     sequenceMarkForAddDeleteSubDeductions = (80 / 100) * sequenceMark
-    print('sequenceMarkForAddDeleteDeductions: ' + str(sequenceMarkForAddDeleteSubDeductions))
 
     totalAddDeleteSubDiff = noOfAdditionalNodes + noOfDeletedNodes + noOfSubstitutedNodes + totNoOfOtherIncorrectNodes
 
@@ -120,20 +104,10 @@ def allocateMarksToLogicGateAnswerAndSaveToDatabase(matchedCompletedStudentNodes
 
     scoredFullMark = scoredSymbolMark + scoredSequenceMark
 
-    print(scoredSymbolMark)
-    print(scoredSequenceMark)
-    print('no of matched nodes in allocateMarksToLogicGateAnswerAndSaveToDatabase')
-    print(noOfMatchedNodes)
-    print(noOfAdditionalNodes)
-    print(noOfDeletedNodes)
-    print(noOfSubstitutedNodes)
-    print(totNoOfOtherIncorrectNodes)
-
     # save matched correct gates to database
     matchedGatesStr = ""
     count = 0
     while count < len(matchedCompletedStudentNodes):
-        print(matchedGatesStr)
         matchedGatesStr = matchedGatesStr + str(matchedCompletedStudentNodes[count]) + ","
         count = count + 1
 
@@ -159,9 +133,6 @@ def markStudBFSLogicGateAnswer():
         "MATCH (node:Teacher) WHERE node.symbol='input' RETURN node")
     studentInputNodes = graph.data(
         "MATCH (node:Student) WHERE node.symbol='input' RETURN node")
-
-    print(teacherInputNodes[0]['node']['key'])
-    print(studentInputNodes)
 
     teacherQueue = [teacherInputNodes[0]['node']['key']]
 
@@ -231,20 +202,9 @@ def markStudBFSLogicGateAnswer():
             "MATCH (node:Student) WHERE node.key= {key} RETURN node",
             parameters={"key": studentCurrent})
 
-        print(teacherCurrent)
-        print(currentTeacherNodeInfo[0]['node']['symbol'])
-
         if currentTeacherNodeInfo[0]['node']['symbol'] == "output":
-            print('^^^^^^^INSIDE teacher pop is output')
-            # studentCurrent = studentQueue.pop()
-
-            # currentStudentNodeSymbol = graph.data(
-            #     "MATCH (node:Student) WHERE node.key= {key} RETURN node.symbol",
-            #     parameters={"key": studentCurrent})
-
             if currentStudentNodeInfo[0]['node']['symbol'] == "output":
                 feedback = feedback + 'The output and the connections to it are correct. '
-                # print('feedback: ' + feedback)
 
                 answerDiagramCorrect = 'true'
                 break
@@ -257,27 +217,7 @@ def markStudBFSLogicGateAnswer():
             "MATCH (parent:Student)-[:TO]->(child:Student) WHERE parent.key= {key} RETURN child",
             parameters={"key": studentCurrent})
 
-        # studentGateNodeList = studentQueue
-
-        print('got teacher child nodes')
-        print('teacher queue: ')
-        print(teacherQueue)
-        print('student queue: ')
-        print(studentQueue)
-
         for teacherChild in teacherChildNodes:
-
-            print('teacher child')
-            print(teacherChild)
-            print('teacher current')
-            print(teacherCurrent)
-            print('teacher queue')
-            print(teacherQueue)
-            print('student queue')
-            print(studentQueue)
-
-            # matchFound = "false"
-
             # get all parents of current teacher child node under analysis except the current teacher parent node
             teacherChildParents = graph.data(
                 "MATCH (parent:Teacher)-[:TO]->(child:Teacher) WHERE child.key= {key} AND parent.key <> {parentKey} RETURN parent",
@@ -285,21 +225,13 @@ def markStudBFSLogicGateAnswer():
 
             teacherChildParentsList = list(teacherChildParents)
 
-            print(teacherChildParentsList)
-
             childlessTeacherOtherParents = []
             childHavingTeacherOtherParents = []
 
             for teacherChildParent in teacherChildParentsList:
-                print('^^^^^^^^^^get teacherChildParentChildrenNodes')
                 teacherChildParentChildrenNodes = graph.data(
                     "MATCH (parent:Teacher)-[:TO]->(child:Teacher) WHERE parent.key= {parentKey} AND child.key <> {childKey} RETURN child",
                     parameters ={"parentKey": teacherChildParent['parent']['key'], "childKey": teacherChild['child']['key']})
-
-                print('teacherChildParent: ')
-                print(teacherChildParent['parent']['key'])
-                print('teacherChild: ')
-                print(teacherChild['child']['key'])
 
                 # check whether other teacher parents have other children besides current child
                 if not teacherChildParentChildrenNodes:
@@ -307,53 +239,9 @@ def markStudBFSLogicGateAnswer():
                 else:
                     childHavingTeacherOtherParents.append(teacherChildParent)
 
-            # print('studentGateNodeList: ')
-            # print(studentGateNodeList)
-            # print(studentQueue)
-
-            # for studGate in reversed(studentGateNodeList):
-            #     print('stud node gates list for loop...')
-            #     print(studGate)
-            #
-            #     studGateInfo = graph.data(
-            #         "MATCH (node:Student) WHERE node.key= {key} RETURN node",
-            #         parameters={"key": studGate})
-            #
-            #     print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
-            #     print(studGateInfo)
-            #     print(currentTeacherNodeInfo[0]['node']['symbol'])
-            #     print(studGateInfo[0]['node']['symbol'])
-            #
-            #     # think and CHANGE ordering of the inputs in the beginning if more suitable
-            #     if currentTeacherNodeInfo[0]['node']['symbol'] == "input" and studGateInfo[0]['node']['symbol'] == "input":
-            #         print(currentTeacherNodeInfo[0]['node']['text'])
-            #         print(studGateInfo[0]['node']['text'])
-            #         if not currentTeacherNodeInfo[0]['node']['text'] == studGateInfo[0]['node']['text']:
-            #             continue
-            #
-            #     studentChildNodes = graph.data(
-            #         "MATCH (parent:Student)-[:TO]->(child:Student) WHERE parent.key= {key} RETURN child",
-            #         parameters={"key": studGate})
-            #
-            #     # noOfChildrenAnalyzed = 0
-
             for studentChild in studentChildNodes:
-                print('stud node gate child nodes for loop...')
-
                 if currentTeacherNodeInfo[0]['node']['symbol'] == currentStudentNodeInfo[0]['node']['symbol'] and \
                         teacherChild['child']['symbol'] == studentChild['child']['symbol']:
-
-                    # noOfChildrenAnalyzed = noOfChildrenAnalyzed + 1
-
-                    print('teacher node: ')
-                    print(teacherChild['child']['symbol'])
-                    print('child node: ')
-                    print(studentChild['child']['symbol'])
-
-                    print('teacher node: ')
-                    print(teacherChild['child']['key'])
-                    print('child node: ')
-                    print(studentChild['child']['key'])
 
                     studentChildParents = graph.data(
                         "MATCH (parent:Student)-[:TO]->(child:Student) WHERE child.key= {key} AND parent.key <> {parentKey} RETURN parent",
@@ -365,16 +253,10 @@ def markStudBFSLogicGateAnswer():
                     childHavingStudentOtherParents = []
 
                     for studentChildParent in studentChildParentsList:
-                        print('^^^^^^^^^^get student ChildParentChildrenNodes')
                         studentChildParentChildrenNodes = graph.data(
                             "MATCH (parent:Student)-[:TO]->(child:Student) WHERE parent.key= {parentKey} AND child.key <> {childKey} RETURN child",
                             parameters={"parentKey": studentChildParent['parent']['key'],
                                         "childKey": studentChild['child']['key']})
-
-                        print('studentChildParent: ')
-                        print(studentChildParent['parent']['key'])
-                        print('studentChild: ')
-                        print(studentChild['child']['key'])
 
                         # check whether other student parents have other children besides current child
                         if not studentChildParentChildrenNodes:
@@ -382,31 +264,8 @@ def markStudBFSLogicGateAnswer():
                         else:
                             childHavingStudentOtherParents.append(studentChildParent)
 
-                    print(childlessTeacherOtherParents)
-                    print(childlessStudentOtherParents)
-
-                    print(childHavingTeacherOtherParents)
-                    print(childHavingStudentOtherParents)
-
                     if len(childlessTeacherOtherParents) == len(childlessStudentOtherParents) and \
                             len(childHavingTeacherOtherParents) == len(childHavingStudentOtherParents):
-                        # print(studentChild['child']['key'])
-                        # print(studentQueue)
-
-                        # traversedChildMatchFoundNodes.append(studentCurrent)
-                        #
-                        # print('^^^^^^^^^^^^^^^^^Traversed child match: ')
-                        # print(traversedChildMatchFoundNodes)
-
-                        # if only current parent has one child(which is already examined by this point) or if
-                        # all children of current parent has been checked and matched
-                        # if len(studentChildNodes) == 1 or traversedChildMatchFoundNodes.count(studentCurrent) == len(studentChildNodes):   # noOfChildrenAnalyzed == len(studentChildNodes)
-                        #     print('current node student under analysis removed from queue')
-                        #     print(traversedChildMatchFoundNodes.count(studentCurrent))
-                        #     print(len(studentChildNodes))
-                        #     print(studentCurrent)
-                        #     studentQueue.remove(studentCurrent)
-
                         if currentStudentNodeInfo[0]['node']['symbol'] == "input" and not currentStudentNodeInfo[0]['node']['key'] in matchedCompletedStudentNodes:
                             matchedCompletedTeacherNodes.append(teacherCurrent)
                             matchedCompletedStudentNodes.append(studentCurrent)
@@ -419,15 +278,9 @@ def markStudBFSLogicGateAnswer():
                         if not studentChild['child']['key'] in visitedStudentNodes:
                             # remove childless other teacher parents and remove childless other student parents
                             for childlessTeacherNode in childlessTeacherOtherParents:
-                                print('Childless Teacher node: ')
-                                print(childlessTeacherNode['parent']['key'])
-
+                
                                 for childlessStudentNode in childlessStudentOtherParents:
                                         if childlessTeacherNode['parent']['symbol'] == childlessStudentNode['parent']['symbol']:
-                                            print('Childless Student node: ')
-                                            print(childlessStudentNode['parent']['key'])
-                                            print(teacherQueue)
-                                            print(studentQueue)
 
                                             if childlessTeacherNode['parent']['key'] in teacherQueue and\
                                                     childlessStudentNode['parent']['key'] in studentQueue:
@@ -443,12 +296,7 @@ def markStudBFSLogicGateAnswer():
                                                 childlessStudentOtherParentsNotInQueue.append(childlessStudentNode['parent']['key'])
 
 
-                        # studentGateNodeList = studentQueue
-
                         visitedStudentNodes.append(studentChild['child']['key'])
-
-                        print('^^^^^^^^^^^^VISITED NODES: ')
-                        print(visitedStudentNodes)
 
                         # insert matched gate to queue
                         if len(childlessStudentOtherParentsNotInQueue) == 0 and \
@@ -462,16 +310,6 @@ def markStudBFSLogicGateAnswer():
 
                             matchedCompletedTeacherNodes.append(teacherChild['child']['key'])
                             matchedCompletedStudentNodes.append(studentChild['child']['key'])
-
-                        # matchFound = "true"
-
-                        print('^^^^^^^^^^^^^matched student nodes: ')
-                        print(matchedCompletedStudentNodes)
-
-                        print('teacher queue after last node insertion to queue: ')
-                        print(teacherQueue)
-                        print('student queue after last node insertion to queue: ')
-                        print(studentQueue)
 
                         if len(teacherChildNodes) == len(studentChildNodes) or len(teacherChildNodes) > len(studentChildNodes):
                             matchedTeacherLevelNodes.append(teacherChild['child']['key'])
@@ -487,16 +325,7 @@ def markStudBFSLogicGateAnswer():
 
                         break
 
-            # if matchFound == "true":
-            #     break
-
-        print('teacherChildNodes list length')
-        print(teacherChildNodes)
-        print('studentChildNodes list length')
-        print(studentChildNodes)
-
         if len(teacherChildNodes) == len(studentChildNodes):
-            print('^^^^^^^^^^^^^^Inside substituted')
             if not len(teacherChildNodes) == len(matchedTeacherLevelNodes):
                 for teacherChild in teacherChildNodes:
                     if not teacherChild['child']['key'] in matchedTeacherLevelNodes and not teacherChild['child']['key'] in errorneousTeacherNodes:
@@ -532,7 +361,6 @@ def markStudBFSLogicGateAnswer():
                         totNoOfAdditionalNodes = totNoOfAdditionalNodes + 1
                         errorneousStudentNodes.append(studentChild['child']['key'])
             elif len(matchedStudentLevelNodes) < len(teacherChildNodes):
-                print('^^^^^^^^^^^^Inside additional substituted')
                 for studentChild in studentChildNodes:
                     if not studentChild['child']['key'] in matchedStudentLevelNodes and not studentChild['child']['key'] in errorneousStudentNodes:
                         addOrSubNodes.append(studentChild['child']['key'])
@@ -545,10 +373,6 @@ def markStudBFSLogicGateAnswer():
 
         matchedTeacherLevelNodes = []
         matchedStudentLevelNodes = []
-
-    print('BEFORE down path macthed ')
-    print(matchedCompletedStudentNodes)
-    print(matchedCompletedTeacherNodes)
 
     # handles additional nodes down an additional node starting path
     if additionalNodes:
@@ -579,33 +403,18 @@ def markStudBFSLogicGateAnswer():
     if totNoOfAdditionalNodes == 0 and totNoOfDeletedNodes == 0 and totNoOfSubstitutedNodes == 0 and \
             totNoOfOtherIncorrectNodes == 0:
         feedback = feedback + "Excellent Job! All the inputs, gates, output, and the connections are correct! "
-        # print(feedback)
 
     feedback = feedback + "Please refer your answer diagram for feedback on where you went wrong. Green " +\
                "indicates correct gates and connections while Red indicates wrong gates and connections. " +\
                "Please note that any input(to a gate) connected to a wrong gate(a gate wbich has wrong " +\
                "connections even if the symbol is the same) is identified wrong by the system and in the highlighted gate feedback. "
-    print(feedback)
-
-    print(totNoOfAdditionalNodes)
-    print(totNoOfDeletedNodes)
-    print(totNoOfSubstitutedNodes)
-    print(totNoOfOtherIncorrectNodes)
-
-    print('AFTER down path macthed ')
-    print(matchedCompletedStudentNodes)
-    print(matchedCompletedTeacherNodes)
 
     return matchedCompletedStudentNodes,  totNoOfAdditionalNodes, totNoOfDeletedNodes, \
            totNoOfSubstitutedNodes, totNoOfOtherIncorrectNodes, feedback, answerDiagramCorrect
 
 
-# markStudBFSLogicGateAnswer()
-
-
 def markLogicGateAnswer(logicGateQuestionId, studentAnswerId, isExactMatch, noOfInputs):
     if isExactMatch == "true":  # resultSet[0]
-        print('true')
         matchedCompletedStudentNodes, noOfAdditionalNodes, noOfDeletedNodes, noOfSubstitutedNodes, totNoOfOtherIncorrectNodes, \
         feedback, answerDiagramCorrect = markStudBFSLogicGateAnswer()
         allocateMarksToLogicGateAnswerAndSaveToDatabase(matchedCompletedStudentNodes, len(matchedCompletedStudentNodes), \
@@ -613,7 +422,6 @@ def markLogicGateAnswer(logicGateQuestionId, studentAnswerId, isExactMatch, noOf
                                                         noOfSubstitutedNodes, totNoOfOtherIncorrectNodes, feedback, \
                                                         logicGateQuestionId, studentAnswerId)
     elif isExactMatch == "false":
-        print('false')
         matchedCompletedStudentNodes, noOfAdditionalNodes, noOfDeletedNodes, noOfSubstitutedNodes, totNoOfOtherIncorrectNodes, \
         feedback, answerDiagramCorrect = markStudBFSLogicGateAnswer()
 
@@ -640,6 +448,3 @@ def markLogicGateAnswer(logicGateQuestionId, studentAnswerId, isExactMatch, noOf
         allocateMarksToLogicGateAnswerAndSaveToDatabase(matchedCompletedStudentNodes, noOfMatchedNodes, noOfAdditionalNodes, noOfDeletedNodes,
                                                         noOfSubstitutedNodes, totNoOfOtherIncorrectNodes, feedback, \
                                                         logicGateQuestionId, studentAnswerId)
-
-
-# markLogicGateAnswer("false")

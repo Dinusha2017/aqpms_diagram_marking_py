@@ -5,8 +5,6 @@ import re
 
 from FlowchartProgramExecution import ifHasOnlyOnePath, convertFlowchartToProgram
 
-# createNeo4jGraph("Flowchart", "Teacher", 56)
-# createNeo4jGraph("Flowchart", "Student", 141)
 
 def addStepMarkDetailsToDictionary(numberPresentKey,
                                    stepMarkKey,
@@ -43,9 +41,6 @@ def compareStepCounts(symbol,
             markPerSymbolAction = (teacherStepAndMarkInfo[symbolTotMarksKey] / teacherStepAndMarkInfo[symbolNoCountKey])/2
         else:
             markPerSymbolAction = teacherStepAndMarkInfo[symbolTotMarksKey] / teacherStepAndMarkInfo[symbolNoCountKey]
-        # print(symbolNoCountKey)
-        # print(teacherStepAndMarkInfo[symbolNoCountKey])
-        # print(studentStepInfo[symbolNoCountKey])
 
         if not teacherStepAndMarkInfo[symbolNoCountKey] == studentStepInfo[symbolNoCountKey]:
             if teacherStepAndMarkInfo[symbolNoCountKey] > studentStepInfo[symbolNoCountKey]:
@@ -89,7 +84,6 @@ def allocateMarksAndSaveToDatabase(scoredStepMark,
     resultSet = cur.fetchone()
     print('starting mark allocation...')
 
-    # stepMark = resultSet[0]
     sequenceMark = resultSet[0]
 
     sequenceMarkForAddDeleteDeductions = (70/100) * sequenceMark
@@ -118,12 +112,6 @@ def allocateMarksAndSaveToDatabase(scoredStepMark,
                               'symbols, text, and connections. '
 
     scoredFullMark = scoredStepMark + scoredSequenceMark
-
-    print('Scored Step Mark: ' + str(scoredStepMark))
-    print('Scored Sequence Mark: ' + str(scoredSequenceMark))
-    print('Number of Additional Nodes Found: ' + str(noOfAdditionalNodes))
-    print('Number of Deleted Nodes: ' + str(noOfDeletedNodes))
-    print('Feedback: ' + str(feedback))
 
     cur.execute("UPDATE flowchart_stud_answer SET stepMark = %s, sequenceMark = %s WHERE flowchartStudAnsId = %s",
                 (scoredStepMark, scoredSequenceMark, studentAnswerId))
@@ -200,7 +188,7 @@ def getAllIncorrectNodes(caller,
                          traversedNodes,
                          visitedNodes):
     noOfIncorrectNodes = 0
-    print(stack)
+ 
     while stack:
         currentNode = stack.pop()
 
@@ -212,7 +200,6 @@ def getAllIncorrectNodes(caller,
                                          parameters={"key": currentNode})
 
         if not (currentNodeInfo[0]['node']['symbol'] == "End") and not (currentNode in traversedNodes):
-            print(currentNode)
             totNoOfIncorrectSteps = totNoOfIncorrectSteps + 1
             noOfIncorrectNodes = noOfIncorrectNodes + 1
 
@@ -281,7 +268,7 @@ def handleIfStructureTraversal(caller,
             ifFound = "true"
             if not currentStructure:
                 currentStructure = "If"
-            # stack.append(yesCurrentChildNode[0]['child']['key'])
+           
             ifHasOnlyOnePath(caller, graph, stack, yesCurrentChildNode[0]['child']['key'],
                              traversedNodes, noCurrentChildNode[0]['child']['key'], commonNodes,
                              currentNode, ifNodes, ifDictionary)
@@ -298,7 +285,7 @@ def handleIfStructureTraversal(caller,
             ifFound = "true"
             if not currentStructure:
                 currentStructure = "IfNot"
-            # stack.append(noCurrentChildNode[0]['child']['key'])
+           
             ifHasOnlyOnePath(caller, graph, stack, noCurrentChildNode[0]['child']['key'], traversedNodes,
                              yesCurrentChildNode[0]['child']['key'], commonNodes, currentNode,
                              ifNodes, ifDictionary)
@@ -326,16 +313,6 @@ def handleIfStructureTraversal(caller,
 
         noOfPathsToCommonNode = commonNodePaths[0]['count(paths)'] - commonNodeLoopPaths[0]['count(paths)']
 
-        # noOfPathsToCommonNode = graph.data(
-        #     "MATCH (parent:" + caller + ")-[:TO|YES|NO]->(child:" + caller + ") WHERE " +
-        #     "child.key= {key} RETURN parent", parameters={"key": currentCommonNode[0]['commonNode']['key']})
-
-        # noOfPathsToCommonNode = graph.data("MATCH paths = (currentDecision:" + caller + ")-[*]->" +
-        #                         "(commonNode:" + caller + "), loopPaths=(commonNode:" + caller + ")-[*]->(commonNode:" + caller + ") " +
-        #                         "WHERE currentDecision.key={currentNodeKey} and commonNode.key={commonNodeKey} and paths<>loopPaths " +
-        #                         "RETURN count(paths)", parameters={"currentNodeKey": currentNode,
-        #                         "commonNodeKey": currentCommonNode[0]['commonNode']['key']})
-
         if yesCurrentChildNode[0]['child']['key'] in visitedNodes:
             stack.append(noCurrentChildNode[0]['child']['key'])
 
@@ -357,16 +334,9 @@ def handleIfStructureTraversal(caller,
             if not ifNodes[0] in visitedNodes:
                 if not currentNode in ifDictionary:
                     ifDictionary[currentNode] = noOfPathsToCommonNode
-                    #noOfPathsToCommonNode[0]['count(paths)']
-                    # ifDictionary[currentNode] = len(noOfPathsToCommonNode)
             else:
                 if not currentNode in ifDictionary:
                     ifDictionary[currentNode] = mainIfCompletedNoOfPaths + noOfPathsToCommonNode
-                    #noOfPathsToCommonNode[0]['count(paths)']
-                    # ifDictionary[currentNode] = mainIfCompletedNoOfPaths + len(
-                    #     noOfPathsToCommonNode)
-                    # BUG: else if bug in marking: noOfPathsToCommonNode is correct
-                    # ifDictionary[currentNode] = len(noOfPathsToCommonNode)
 
     return currentStructure, ifFound
 
@@ -452,9 +422,7 @@ def traverseStepsAndHandleDetails(caller,
                     stack.append(currentNode)
                     lastNode = "CommonNode"
                     currentStructure = ""
-                    # if caller == "Student" and traversedNodes.count(currentNode) > 1:
-                    #     studIfElseStepInfoDictList.append(stepDetailsDictionary.copy())
-                    #     stepDetailsDictionary.clear()
+                   
                     if not (commonNodes or whileNodes or doWhileNodes):
                         nestedLevel = 0
                         breakType = "Condition"
@@ -571,15 +539,6 @@ def traverseStepsAndHandleDetails(caller,
                                                            currentNodeInfo, 1)
                         nestedLevel = nestedLevel + 1
 
-                    # if caller == "Student" and traversedNodes.count(currentNode) == 1 and studIfElseStepInfoDictList \
-                    #         and currentStructure == "IfElseIf":
-                    #     studIfElseStepInfoDictList.append(stepDetailsDictionary.copy())
-                    #     stepDetailsDictionary.clear()
-                    # elif caller == "Teacher" and traversedNodes.count(currentNode) == 1 and currentStructure == "IfElseIf":
-                    #     lastNode = "Decision"
-                    #     previousNode = currentNode
-                    #     return lastNode, previousNode, ifNodes, ifDictionary
-
                     yesCurrentChildNode = graph.data(
                         "MATCH (parent:" + caller + ")-[:YES]->(child:" + caller + ") WHERE parent.key= {key} RETURN child",
                         parameters={"key": currentNode})
@@ -638,7 +597,6 @@ def traverseStepsAndHandleDetails(caller,
                         if (len(whileNodes) == 0 and traversedNodes.count(currentNode) == 1) or \
                                 (len(whileNodes) == 1 and traversedNodes.count(currentNode) == 2) or \
                                 (len(whileNodes) == 0 and traversedNodes.count(currentNode) == 2):
-                        # if traversedNodes.count(currentNode) == 1 or traversedNodes.count(currentNode) == 2:
                             loopPath = graph.data("MATCH (currentNode:" + caller + ")-[r:YES|NO]->(nextNode:" + caller +
                                                   ")-[*]->(currentNode:" + caller + ") WHERE currentNode.key = "
                                                   "{currentNodeKey} RETURN DISTINCT TYPE(r)",
@@ -681,7 +639,6 @@ def traverseStepsAndHandleDetails(caller,
                                 if (len(whileNodes) == 0 and traversedNodes.count(currentNode) == 1) or \
                                         (len(whileNodes) == 1 and traversedNodes.count(currentNode) == 2) or \
                                         (len(whileNodes) == 0 and traversedNodes.count(currentNode) == 2):
-                                # if traversedNodes.count(currentNode) == 1 or traversedNodes.count(currentNode) == 2:
                                     loopPathLength = graph.data(
                                         "MATCH path = (currentNode:" + caller + ")-[r:YES|NO]->(nextNode:" + caller +
                                         ")-[*]->(currentNode:" + caller + ") WHERE currentNode.key = " +
@@ -793,24 +750,9 @@ def traverseStepsAndHandleDetails(caller,
                                         return lastNode, previousNode, ifNodes, ifDictionary, nestedLevel, breakType
                                     whileNodes.pop()
 
-                    # if caller == "Student" and traversedNodes.count(currentNode) > 1 and currentStructure == "IfElse":
-                    #     studIfElseStepInfoDictList.append(stepDetailsDictionary.copy())
-                    #     stepDetailsDictionary.clear()
-                    # elif caller == "Student" and currentStructure == "IfElseIf":
-                    #     if traversedNodes.count(currentNode) == 1 and not studIfElseStepInfoDictList:
-                    #         lastNode = "Decision"
-                    #         previousNode = currentNode
-                    #         return lastNode, previousNode, ifNodes, ifDictionary
-                    #     elif traversedNodes.count(currentNode) > 1:
-                    #         studIfElseStepInfoDictList.append(stepDetailsDictionary.copy())
-                    #         stepDetailsDictionary.clear()
-                    # else:
                     if not ((traversedNodes.count(currentNode) > 1 and ifFound == "true") or nestedLevel > 1):
-                            # (len(commonNodes) >= 1 or len(whileNodes) >= 1 or len(doWhileNodes) >= 1)):
                         lastNode = "Decision"
-                        # lastNode = currentStructure
                         previousNode = currentNode
-                        # break
                         return lastNode, previousNode, ifNodes, ifDictionary, nestedLevel, breakType
 
             if not currentNodeInfo[0]['node']['symbol'] == "Decision":
@@ -895,8 +837,6 @@ def markStudDFSFlowchartAnswer(desiredProgramOutput,
     markingFinished = "false"
 
     while markingFinished == "false":
-        # endOrDecisionFound = "false"
-
         teacherLastNode = "End"
         studentLastNode = "End"
 
@@ -992,11 +932,7 @@ def markStudDFSFlowchartAnswer(desiredProgramOutput,
 
             markingFinished = "true"
 
-# markStudDFSFlowchartAnswer("true", 46, 135)
-
 def markFlowchartAnswer(flowchartQuestionId,
                         studentAnswerId):
     desiredResult = convertFlowchartToProgram(flowchartQuestionId)
     markStudDFSFlowchartAnswer(desiredResult, flowchartQuestionId, studentAnswerId)
-
-# markFlowchartAnswer(56, 141)

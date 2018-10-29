@@ -25,18 +25,11 @@ def convertPennTagToWnTag(tag):
 
 # returns synsets for a pos tagged word
 def getSynset(word, tag):
-    # print('INSIDE getSynset')
     wordnet_tag = convertPennTagToWnTag(tag)
     if wordnet_tag is None:
-        # print('wordnet_tag is None')
         return None
 
     try:
-        # print('inside synset try')
-        # print(word)
-        # print(wordnet_tag)
-        # print(wn.synsets(word, wordnet_tag))
-        # print(wn.synsets(word, wordnet_tag)[0])
         return wn.synsets(word, wordnet_tag)[0]  #  Get the most common synset
     except:
         return None
@@ -45,9 +38,6 @@ def getPhraseSimilarity(teacherPhrase, studentPhrase):
     # tokenize the phrases and add part-of-speech tags
     teacherPhrase = pos_tag(word_tokenize(teacherPhrase))
     studentPhrase = pos_tag(word_tokenize(studentPhrase))
-
-    # print('^^^^^^^^^^^^^Teacher pos tagged phrase')
-    # print(teacherPhrase)
 
     # Get the synsets for the pos tagged words
     teacherSynsets = [getSynset(*tagged_word) for tagged_word in teacherPhrase]
@@ -61,11 +51,6 @@ def getPhraseSimilarity(teacherPhrase, studentPhrase):
 
     # for each word in the teacher's text/phrase
     for synset in teacherSynsets:
-
-        # print('^^^^^^^^SYNSETS')
-        # print(teacherSynsets)
-        # print(studentSynsets)
-
         # checks only whether student synset is empty as student can write wrong answers, assuming that the teacher enters correct text as teacher
         # has to enter correct details to the system without mistakes
         if studentSynsets:
@@ -77,8 +62,6 @@ def getPhraseSimilarity(teacherPhrase, studentPhrase):
 
             if not simList:
                 continue
-
-            print(simList)
 
             best_score = max(simList)
 

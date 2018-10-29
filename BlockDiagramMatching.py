@@ -13,10 +13,8 @@ from py2neo import Graph
 
 import json
 
-mySQLhostname = '104.248.116.101'
-mySQLusername = 'aqpmsuser'
-mySQLpassword = 'aqpms'
-mySQLdatabase = 'question_marking_system'
+from DbConnection import connectToMySQL
+
 
 def addTheOnlyUnmatchedNode(caller, graph,
                             notMatchedParentTeacherNodes,
@@ -41,19 +39,8 @@ def addTheOnlyUnmatchedNode(caller, graph,
         "MATCH (node:Teacher) WHERE node.key= {key} RETURN node.text",
         parameters={"key": teacherCurrentNode})
 
-    # print(teacherNodeText[0]['node.text'])
-    print(teacherCurrentNode)
-    print(teacherCurrentText)
-
-    print('^^^^^^^^^^^ BEFORE one substituted function FOR LOOP')
-
     for studentChild in studChildNodesList:
-        print('^^^^^^^^^^^ INSIDE one substituted function FOR LOOP')
-
         if not studentChild['child']['key'] in matchedLevelStudentNodes and not studentChild['child']['key'] in studentVisitedNodes:
-            print('^^^^^^^^^^^ INSIDE if and after visited node check')
-            # print('not matched student node: ' + str(studentChild))
-
             teachStack.append(teacherNode)
 
             studStack.append(studentChild['child']['key'])
@@ -83,18 +70,11 @@ def checkForCurrentNodeChildMatch(caller, graph,
                                   teachStack,
                                   feedback,
                                   currentStudText):
-
-    # print('^^^^^INSIDE checkForCurrentNodeChildMatch')
-    # print(notMatchedParentTeacherNodes)
-
     handledStudentNodeList = matchedStudentNodes
 
     againNotMatchedTeacherNodes = []
 
     for notMatchedTeacherNode in notMatchedParentTeacherNodes:
-
-        # print('INSIDE TEACHER FOR LOOOOOOP')
-
         teacherNodeText = graph.data(
             "MATCH (node:Teacher) WHERE node.key= {key} RETURN node.text",
             parameters={"key": notMatchedTeacherNode})
@@ -109,9 +89,6 @@ def checkForCurrentNodeChildMatch(caller, graph,
         matchingStudentNodeFound = 'false'
 
         for studentChild in studChildNodesList:
-
-            # print('INSIDE STUDENT FOR LOOOOOOP')
-
             if matchingStudentNodeFound == 'true':
                 break
 
@@ -125,12 +102,6 @@ def checkForCurrentNodeChildMatch(caller, graph,
                     textSim = getPhraseSimilarity(teacherChildText, notMatchedStudentChild['child']['text'])
 
                     if re.match(teacherChildText, notMatchedStudentChild['child']['text'], re.IGNORECASE) or textSim >= 0.55:
-                        print('the text')
-                        print(teacherChildText)
-                        print(notMatchedStudentChild['child']['text'])
-                        print('threshold similarity added to Student stack in NOT MATCHED SIMILARITY GREATER ' + str(
-                            textSim))
-
                         studStack.append(studentChild['child']['key'])
                         teachStack.append(notMatchedTeacherNode)
 
@@ -151,9 +122,6 @@ def checkForCurrentNodeChildMatch(caller, graph,
 
         if matchingStudentNodeFound == 'false':
             againNotMatchedTeacherNodes.append(notMatchedTeacherNode)
-
-    # print('^^^^^^^^^^^HANDLED STUDENT NODE LIST')
-    # print(handledStudentNodeList)
 
     return againNotMatchedTeacherNodes, handledStudentNodeList, feedback
 
@@ -228,7 +196,7 @@ def allocateMarksAndSaveToDatabase(noOfMatchedNodes,
                                    feedback,
                                    processQuestionId,
                                    studentAnswerId):
-    connection = pymysql.connect(host=mySQLhostname, user=mySQLusername, passwd=mySQLpassword, db=mySQLdatabase)
+    connection = connectToMySQL()
     cur = connection.cursor()
     cur.execute("SELECT textMark, sequenceMark FROM process_question WHERE processqId = %s", (processQuestionId))
     resultSet = cur.fetchone()
@@ -238,7 +206,6 @@ def allocateMarksAndSaveToDatabase(noOfMatchedNodes,
     sequenceMark = resultSet[1]
 
     sequenceMarkForAddDeleteDeductions = (70/100) * sequenceMark
-    print('sequenceMarkForAddDeleteDeductions: ' + str(sequenceMarkForAddDeleteDeductions))
 
     totalAddDeleteDiff = noOfAdditionalNodes + noOfDeletedNodes + totNoOfOtherIncorrectNodes
 
@@ -254,12 +221,6 @@ def allocateMarksAndSaveToDatabase(noOfMatchedNodes,
             scoredSequenceMark = sequenceMark - sequenceMarkForAddDeleteDeductions
 
     scoredFullMark = scoredTextMark + scoredSequenceMark
-
-    print(scoredTextMark)
-    print(scoredSequenceMark)
-    print(noOfAdditionalNodes)
-    print(noOfDeletedNodes)
-    print(totNoOfOtherIncorrectNodes)
 
     cur.execute("UPDATE process_stud_answer SET textMark = %s, sequenceMark = %s WHERE processStudAnsId = %s",
                 (scoredTextMark, scoredSequenceMark, studentAnswerId))
@@ -330,12 +291,6 @@ def markStudDFSBlockAnswer(processQuestionId, studentAnswerId):
                 "MATCH (node:Student) WHERE node.key= {key} RETURN node.text",
                 parameters={"key": studCurrent})
 
-            print('teacher current........................')
-            print(teacherCurrentText)
-            print('student current........................')
-            print(studentCurrentText)
-
-
             teacherChildNodes = graph.data(
                 "MATCH (parent:Teacher)-[:TO]->(child:Teacher) WHERE parent.key= {key} RETURN child",
                     parameters={"key": teachCurrent})     #teacherStartNodeKey[0]['node.key']
@@ -363,23 +318,9 @@ def markStudDFSBlockAnswer(processQuestionId, studentAnswerId):
                             print('current stud child')
                             print(studentChild['child']['text'])
                             childText = studentChild['child']['text']
-                            # studTextTokens = whiteSpaceTokenizer.tokenize(studentChild['child']['text'])
-                            #
-                            # jaccard_score = jaccard.get_raw_score(teachTextTokens, studTextTokens)
-                            # lev_score = levenshtein.get_sim_score(teachText, childText)
-                            # similarity = SequenceMatcher(None, teachText, childText).ratio()
 
                             synsetSim_score = getPhraseSimilarity(teachText, childText)
 
-                            print(teachText)
-                            print(childText)
-                            #
-                            # print('lev: ' + str(lev_score))
-                            # print('similarity: ' + str(similarity))
-                            print('synset similarity: ' + str(synsetSim_score))
-
-                            # if lev_score > 0.1:
-                            # if similarity > 0.4:
                             if re.match(teachText, childText, re.IGNORECASE) or synsetSim_score >= 0.55:
                                 print('threshold similarity added to Student stack')
 
@@ -419,14 +360,6 @@ def markStudDFSBlockAnswer(processQuestionId, studentAnswerId):
                         totNoOfOtherIncorrectNodes = totNoOfOtherIncorrectNodes + 1
 
 
-
-            print('matched teacher nodes: ')
-            print(allMatchedTeachNodes)
-            print('matched student nodes: ')
-            print(allMatchedStudNodes)
-
-
-
             if len(teachChildNodesList) == len(studChildNodesList)and len(notMatchedParentTeacherNodes) == 1:
 
                 print('^^^ONE SUBSTITUTED NODE')
@@ -448,7 +381,6 @@ def markStudDFSBlockAnswer(processQuestionId, studentAnswerId):
                                               studVisitedNodes, studStack, teachStack, feedback, studentCurrentText[0]['node.text'])
 
                 if len(againNotMatchedTeacherNodes) == 1:
-                    print('^^^^^^^^^^^^^^AGAIN NOT MATCHED ONLY 1')
                     totNoOfOtherIncorrectNodes, feedback = addTheOnlyUnmatchedNode('NotMatchedChildrenNode', graph, againNotMatchedTeacherNodes,
                                                         teachStack, studChildNodesList,
                                                         handledStudentNodeList,
@@ -457,7 +389,6 @@ def markStudDFSBlockAnswer(processQuestionId, studentAnswerId):
                                                         studentCurrentText[0]['node.text'], totNoOfOtherIncorrectNodes)
 
                 elif len(againNotMatchedTeacherNodes) > 1:
-                    print('^^^^^^^^^^^^^^AGAIN NOT MATCHED MANYYYY')
                     for studentChild in studChildNodesList:
                         if not studentChild['child']['key'] in handledStudentNodeList and not studentChild['child']['key'] in studVisitedNodes:
                             feedback = feedback + 'The block:' + studentChild['child']['text'] + \
@@ -475,10 +406,6 @@ def markStudDFSBlockAnswer(processQuestionId, studentAnswerId):
 
                             substitutedNodes.append(studentChild['child']['key'])
 
-
-
-            # print('^^^^^^^^^^^BEFORE IF')
-            # print(notMatchedParentTeacherNodes)
 
             # handles scenario where student graph has deleted child nodes for the current node under consideration
             if len(teachChildNodesList) > len(studChildNodesList):
@@ -501,9 +428,6 @@ def markStudDFSBlockAnswer(processQuestionId, studentAnswerId):
                                 'deletedSubstitutedCaller', graph, matchedStudentNodes,
                                 notMatchedParentTeacherNodes, studChildNodesList,
                                 studVisitedNodes, studStack, teachStack, feedback, studentCurrentText[0]['node.text'])
-
-                    # print('^^^^^^^^^^^^^^^^^^DELETED SCENARIO')
-                    # print(againNotMatchedTeacherNodes)
 
                     if len(handledStudentNodeList) == len(studChildNodesList):
                         for child in teachChildNodesList:
@@ -543,10 +467,6 @@ def markStudDFSBlockAnswer(processQuestionId, studentAnswerId):
                             feedback = feedback + 'Additional connection from block:' + studentCurrentText[0]['node.text'] +\
                                        ' to block:' + child['child']['text'] + '. '
                 elif len(matchedStudentNodes) < len(teachChildNodesList):
-                    # print('^^^^^^^^^^^^^^^^INSIDE ADDITIONAL')
-                    # print(len(teachChildNodesList))
-                    # print(len(matchedStudentNodes))
-
                     feedback = feedback + 'There is/are ' + str(len(studChildNodesList) - len(teachChildNodesList)) + \
                                ' additional block(s) connected to block:' + studentCurrentText[0]['node.text'] + ' and ' +\
                                str(len(teachChildNodesList) - len(matchedStudentNodes)) +\
@@ -559,9 +479,6 @@ def markStudDFSBlockAnswer(processQuestionId, studentAnswerId):
 
 
                     if len(handledStudentNodeList) == len(teachChildNodesList):  # len(againNotMatchedTeacherNodes) == (len(studChildNodesList)-len(teachChildNodesList))
-
-                        print('INSIDE DETECTED ADDITIONAL nodes')
-
                         for child in studChildNodesList:
                             if not child['child']['key'] in handledStudentNodeList and not child['child'][
                                                                                             'key'] in studVisitedNodes:
@@ -589,10 +506,6 @@ def markStudDFSBlockAnswer(processQuestionId, studentAnswerId):
 
             teachVisitedNodes.append(teachCurrent)
             studVisitedNodes.append(studCurrent)
-
-
-            print('^^^^^^^^^no of substitutions: ' + str(totNoOfSubstitutedNodes))
-            # print('feedback: ' + feedback)
 
         elif studStack and not teachStack:
             print('^^^^^^^^^^^^^^^STUDENT stack has moreeee.....')
@@ -642,6 +555,3 @@ def markStudDFSBlockAnswer(processQuestionId, studentAnswerId):
     allocateMarksAndSaveToDatabase(totNoOfMatchedNodes, totNoOfAdditionalNodes, totNoOfDeletedNodes,
                                    totNoOfSubstitutedNodes, totNoOfOtherSubstitutedNodes, totNoOfOtherIncorrectNodes,
                                    feedback, processQuestionId, studentAnswerId)
-
-
-# markStudDFSBlockAnswer()

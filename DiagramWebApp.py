@@ -23,8 +23,6 @@ def markDiagram(question_Id, graphType):
     directory = "StudentAnswerProgram"
 
     try:
-        print("Inside try")
-
         createNeo4jGraph(graphType, "Teacher", question_Id)
 
         isExactMatch = ""
@@ -53,13 +51,10 @@ def markDiagram(question_Id, graphType):
         cur.execute("SELECT studAnswerId FROM student_answer WHERE questionId = %s and markedStatus = %s", 
                     (question_Id, "false"))
         resultSet = cur.fetchall()
-        print(resultSet)
         cur.close()
         connection.close()
 
         for row in resultSet:
-            print(row[0])
-
             createNeo4jGraph(graphType, "Student", row[0])
 
             if graphType == "Block":
