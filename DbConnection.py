@@ -1,6 +1,6 @@
 import pymysql
 
-mySQLhostname = '104.248.239.53'  # localhost
+mySQLhostname = '68.183.116.125'  # localhost
 mySQLusername = 'aqpmsuser'  # root
 mySQLpassword = 'aqpms'
 mySQLdatabase = 'question_marking_system'
