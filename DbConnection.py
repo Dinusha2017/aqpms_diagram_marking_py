@@ -1,9 +1,9 @@
 import pymysql
 
-mySQLhostname = '68.183.116.125'  # localhost
-mySQLusername = 'aqpmsuser'  # root
-mySQLpassword = 'aqpms'
-mySQLdatabase = 'question_marking_system'
+mySQLhostname = 'localhost'  #  68.183.116.125
+mySQLusername = 'root'  #  aqpmsuser
+mySQLpassword = ''  #aqpms
+mySQLdatabase = 'research_new'
 
 def connectToMySQL():
     return pymysql.connect(host=mySQLhostname, user=mySQLusername, passwd=mySQLpassword, db=mySQLdatabase)

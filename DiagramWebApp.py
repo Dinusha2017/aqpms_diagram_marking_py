@@ -17,7 +17,7 @@ import pymysql
 
 webapp = Flask(__name__)
 
-def markDiagram(question_Id, graphType):
+def markDiagram(question_Id, graphType, caller):
     print("QuestionId: " + question_Id)
 
     directory = "StudentAnswerProgram"
@@ -85,9 +85,15 @@ def markDiagram(question_Id, graphType):
                 shutil.rmtree(directory)
 
         print('Exception: ')
-        print(e)    
+        print(e)
+
+        if caller == "PaperMarker":
+            return "false"    
 
         return jsonify({"status":"failed"})
+
+    if caller == "PaperMarker":
+        return "true"
 
     return jsonify({"status":"successful"})
 
@@ -97,15 +103,37 @@ def hello():
 
 @webapp.route("/block/question/<question_Id>", methods=['GET'])
 def markBlockQuestion(question_Id):
-    return markDiagram(question_Id, "Block")
+    return markDiagram(question_Id, "Block", "BlockMarker")
 
 @webapp.route("/logicgate/question/<question_Id>", methods=['GET'])
 def markLogicGateQuestion(question_Id):    
-    return markDiagram(question_Id, "LogicGate")
+    return markDiagram(question_Id, "LogicGate", "LogicGateMarker")
 
 @webapp.route("/flowchart/question/<question_Id>", methods=['GET'])
 def markFlowchartQuestion(question_Id):    
-    return markDiagram(question_Id, "Flowchart")    
+    return markDiagram(question_Id, "Flowchart", "FlowchartMarker")    
+
+@webapp.route("/questionPaper/<question_paper_Id>", methods=['GET'])
+def markQuestionPaper(question_paper_Id):    
+    connection = connectToMySQL()
+    cur = connection.cursor()
+    cur.execute("SELECT questionId, type FROM question WHERE questionPaperId = %s AND " + 
+                "(type='Block' OR type='LogicGate' OR type='Flowchart')", 
+                (question_paper_Id))
+    resultSet = cur.fetchall()
+    cur.close()
+    connection.close()
+
+    for row in resultSet:
+        questionId = str(row[0])
+        questionType = row[1]
+
+        status = markDiagram(questionId, questionType, "PaperMarker")
+
+        if status == "false":
+            return jsonify({"status":"failed"})        
+
+    return jsonify({"status":"successful"})     
 
 if __name__ == '__main__':
-    webapp.run(host = '142.93.208.98', port = 5000, debug = True)  #   127.0.0.1
+    webapp.run(host = '127.0.0.1', port = 5000, debug = True)  #     142.93.208.98
